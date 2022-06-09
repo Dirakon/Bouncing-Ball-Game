@@ -9,7 +9,6 @@ offset = 100
 
 window :: Display
 window = InWindow "Game" (width, height) (offset, offset)
-
 background :: Color
 background = black
 
