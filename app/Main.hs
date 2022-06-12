@@ -8,6 +8,7 @@ import Graphics.Gloss.Data.Vector
 type Position = (Float, Float)
 type Velocity = (Float, Float)
 type Restitution = Float
+type Cords = (Float, Float)
 
 data PlayerBall = PlayerBall Position Velocity Restitution
 
@@ -116,19 +117,29 @@ moveBall seconds state = state {mainBall = movedPlayerBall} {metaInfo = newMetaI
 
           -- New velocities
           vx
-            | collidedWithEnemyBall =  (- oldVx)
+            | collidedWithEnemyBall = fst newVec
             | collidedWithLeftWall = abs oldVx
             | collidedWithRightWall = (- abs oldVx)
             | otherwise = oldVx
           vy
-            | collidedWithEnemyBall =  (- oldVy)
+            | collidedWithEnemyBall = snd newVec
             | collidedWithCeiling = (- abs oldVy) 
             | otherwise =  oldVy
           newVel = (vx,vy)
 
           -- New locations.
-          x' = x + vx * seconds
-          y' = y + vy * seconds
+          x' = if 
+              snd collisions 
+            then
+              x + 3 * vx + vx * seconds
+            else
+              x + vx * seconds
+          y' = if 
+              snd collisions 
+            then
+              y + 3 * vy + vy * seconds
+            else
+              y + vy * seconds
           newPos = (x', y')
 
           -- Wall collision checks
@@ -137,16 +148,75 @@ moveBall seconds state = state {mainBall = movedPlayerBall} {metaInfo = newMetaI
           collidedWithRightWall = x >= rightWallX (metaInfo state)
           collidedWithFloor = y <= floorY (metaInfo state)
           collidedWithCeiling = y >= ceilingY (metaInfo state)
-          collidedWithEnemyBall = applyCollision (enemyBalls state)
+          collidedWithEnemyBall = snd collisions
+          newVec =
+            if 
+              snd collisions 
+            then
+              getNewVecFromArray (fst collisions)
+            else
+              (oldVx, oldVy)
+          getNewVecFromArray :: [Maybe Cords] -> Cords
+          getNewVecFromArray [] = (oldVx, oldVy)
+          getNewVecFromArray (Nothing : js) = getNewVecFromArray js
+          getNewVecFromArray (Just j : js) = getNewVec (fst j, snd j) (getColisionPoint (x, y) 10 (fst j, snd j) 10) (oldVx, oldVy)
+          collisions = checkCollision (enemyBalls state)
             where
-              applyCollision :: [EnemyBall] -> Bool
-              applyCollision [] = False
-              applyCollision (t : ts) = (applyCollision ts) || ttt t
+              checkCollision :: [EnemyBall] -> ([Maybe Cords], Bool)
+              checkCollision [] = ([Nothing], False)
+              checkCollision enemyBalls = anyCollision (map ttt enemyBalls)
                 where
+                  ttt :: EnemyBall -> (Maybe Cords, Bool)
                   ttt (EnemyBall enemyPosition) = ggg
                     where
                       (i, j) = enemyPosition
-                      ggg = sqrt((i - x)^2 + (j - y)^2) <= 20
+                      ggg = 
+                        if 
+                          condition 
+                        then 
+                          (Just (i, j), True) else (Nothing, False)
+                        where
+                          condition = sqrt((i - x)^2 + (j - y)^2) <= 20
+                  anyCollision :: [(Maybe Cords, Bool)] -> ([Maybe Cords], Bool)
+                  anyCollision [] = ([Nothing], False)
+                  anyCollision arr = ((map fst arr), or (map snd arr))
+
+          getColisionPoint :: 
+            Cords -> 
+            Float ->
+            Cords ->
+            Float ->
+            Cords
+          getColisionPoint 
+            (playerBallX, playerBallY)
+            playerRadius
+            (enemyBallX, enemyBallY)
+            enemyRadius =
+            ((playerBallX * enemyRadius + enemyBallX * playerRadius) / radiusSum, 
+            (playerBallY * enemyRadius + enemyBallY * playerRadius) / radiusSum)
+              where
+                radiusSum = playerRadius + enemyRadius
+            
+          getNewVec :: 
+            Cords
+            -> Cords
+            -> Cords
+            -> Cords
+          getNewVec 
+            (x_center, y_center)
+            (x_collision, y_collision)
+            (x_vec_abs, y_vec_abs) =
+            (x_new_vector, y_new_vector)
+              where
+                x_new_vector = x_ins - x_collision
+                y_new_vector = y_ins - y_collision
+                x_ins = 2 * g - x_eov
+                y_ins = 2 * h - y_eov
+                g = h * x_collision / y_collision
+                h = (x_eov + y_eov * temp) / (temp + 1 / temp)
+                temp = y_collision / x_collision
+                x_eov = x_collision - x_vec_abs
+                y_eov = y_collision - y_vec_abs
                       
 
 -- | Respond to key events.
