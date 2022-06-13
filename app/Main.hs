@@ -125,19 +125,23 @@ moveBall seconds state = state {mainBall = movedPlayerBall} {metaInfo = newMetaI
 
           -- New velocities
           vx
-            | collidedWithEnemyBall = fst newVec / 10
+            | collidedWithEnemyBall = fst newVec
             | collidedWithLeftWall = abs oldVx
             | collidedWithRightWall = (- abs oldVx)
             | otherwise = oldVx
           vy
-            | collidedWithEnemyBall = snd newVec / 10
+            | collidedWithEnemyBall = snd newVec
             | collidedWithCeiling = (- abs oldVy) 
             | otherwise =  oldVy
           newVel = (vx, vy)
 
           -- New locations.
-          x' = x + vx
-          y' = y + vy
+          x' = case snd collisions of 
+            True -> x - oldVx + vx
+            False -> x + vx
+          y' = case snd collisions of 
+            True -> y - oldVy + vy
+            False -> y + vy
           newPos = (x', y')
 
           -- Wall collision checks
@@ -208,9 +212,9 @@ moveBall seconds state = state {mainBall = movedPlayerBall} {metaInfo = newMetaI
               if
                 x_vec_abs * (y_collision - y_center) == y_vec_abs * (x_collision - x_center) 
               then
-                (-x_vec_abs + 0.001, -y_vec_abs)
+                (-x_vec_abs + 0.01, -y_vec_abs)
               else
-                (x_new_vector, y_new_vector)
+                resultVector
               where
                 x_new_vector = x_collision - x_ins
                 y_new_vector = y_collision - y_ins
@@ -223,6 +227,9 @@ moveBall seconds state = state {mainBall = movedPlayerBall} {metaInfo = newMetaI
                 temp = b / a
                 x_eov = a - x_vec_abs
                 y_eov = b - y_vec_abs
+                normalizedResVector = normalizeV (x_new_vector, y_new_vector)
+                resultVector = (fst normalizedResVector * magV (x_vec_abs, y_vec_abs),
+                  snd normalizedResVector * magV (x_vec_abs, y_vec_abs))
                       
 
 -- | Respond to key events.
