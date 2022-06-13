@@ -99,7 +99,7 @@ render state =
 startPlayerRestitution :: Restitution
 startPlayerRestitution = 6
 startPlayerSpeed :: Speed
-startPlayerSpeed = 1000
+startPlayerSpeed = 300
 
 playerRadius::Float
 playerRadius = 10
@@ -148,12 +148,8 @@ moveBall seconds state = state {mainBall = movedPlayerBall} {metaInfo = newMetaI
           newVel = mulSV (speed*seconds) ( normalizeV (vx, vy))
 
           -- New locations.
-          x' = if collidedWithEnemyBall
-            then x - oldVx + vx
-            else x + vx
-          y' = if collidedWithEnemyBall
-            then y - oldVy + vy
-            else y + vy
+          x' = x + vx
+          y' = y + vy
           newPos = (x', y')
 
           -- Wall collision checks
@@ -168,28 +164,36 @@ moveBall seconds state = state {mainBall = movedPlayerBall} {metaInfo = newMetaI
             Nothing -> False
             _ -> True
           newVec =
-            if collidedWithEnemyBall
-            then getNewVecFromArray positionsOfCollidingEnemies
-            else (oldVx, oldVy)
+            if
+              collidedWithEnemyBall
+            then
+              vectorSum (getNewVectorsFromArray positionsOfCollidingEnemies)
+            else
+              (oldVx, oldVy)
 
-          getNewVecFromArray :: [Coords] -> Coords
-          getNewVecFromArray [] = (oldVx, oldVy)
-          getNewVecFromArray (j : js) =
-            getNewVec j (getCollisionPoint (x, y) playerRadius j enemyRadius) (oldVx, oldVy)
+          vectorSum :: [Coords] -> Coords
+          vectorSum vecs = (sum (map getI vecs), sum (map getJ vecs))
+          getI :: Coords -> Float
+          getI (i, _) = i
+          getJ :: Coords -> Float
+          getJ (_, j) = j
 
+          getNewVectorsFromArray :: [Coords] -> [Coords]
+          getNewVectorsFromArray [] = []
+          getNewVectorsFromArray ( j : js) = getNewVec j (getCollisionPoint (x, y) playerRadius j enemyRadius) (oldVx, oldVy) :
+            getNewVectorsFromArray js
           positionsOfCollidingEnemies = getPositionsOfCollidingEnemies (enemyBalls state)
             where
               getPositionsOfCollidingEnemies :: [EnemyBall] -> [Coords]
               getPositionsOfCollidingEnemies enemyBalls = map getPositionOf (filter collidingWith enemyBalls)
                 where
                   collidingWith :: EnemyBall -> Bool
-                  collidingWith (EnemyBall enemyPosition) = 
+                  collidingWith (EnemyBall enemyPosition) =
                     distanceFromEnemyCenter <= playerRadius + enemyRadius
                     where
                       (i, j) = enemyPosition
                       distanceFromEnemyCenter = sqrt((i - x)^2 + (j - y)^2)
                   getPositionOf (EnemyBall position) = position
-
 
           getCollisionPoint ::
             Coords ->
@@ -222,26 +226,25 @@ moveBall seconds state = state {mainBall = movedPlayerBall} {metaInfo = newMetaI
             (x_collision, y_collision)
             (x_vec_abs, y_vec_abs) =
               if
-                x_vec_abs * (y_collision - y_center) == y_vec_abs * (x_collision - x_center)
+                x_vec_abs * b == y_vec_abs * a
               then
-                (-x_vec_abs + 0.01, -y_vec_abs)
+                (-x_vec_abs - 0.01, -y_vec_abs - 0.02)
               else
                 resultVector
               where
-                x_new_vector = x_collision - x_ins
-                y_new_vector = y_collision - y_ins
-                x_ins = 2 * g - x_eov - a
-                y_ins = 2 * h - y_eov - b
-                a = x_center - x_collision
-                b = y_center - y_collision
-                g = h * x_collision / y_collision
-                h = (x_eov + y_eov * temp) / (temp + 1 / temp)
-                temp = b / a
-                x_eov = a - x_vec_abs
-                y_eov = b - y_vec_abs
-                normalizedResVector = normalizeV (x_new_vector, y_new_vector)
-                resultVector = (fst normalizedResVector * magV (x_vec_abs, y_vec_abs),
-                  snd normalizedResVector * magV (x_vec_abs, y_vec_abs))
+                c = x_center  -- center of static circle, x axis
+                d = y_center  -- center of static circle, y axis
+                a = x_collision - c  -- collision point, x axis, in system centered in (c, d)
+                b = y_collision - d  -- collision point, y axis, in system centered in (c, d)
+                e = a - x_vec_abs  -- point to mirror, x axis
+                f = b - y_vec_abs  -- point to mirror, y axis
+                h = (e + f * b / a) / (b / a + a / b)
+                g = h * a / b
+                x = 2 * g - e - a  -- new vector, x axis
+                y = 2 * h - f - b  -- new vector, y axis   
+                resultVector = (x, y)
+
+
 
 
 -- | Respond to key events.
