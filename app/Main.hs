@@ -97,7 +97,7 @@ render state =
 startPlayerRestitution :: Restitution
 startPlayerRestitution = 6
 startPlayerSpeed :: Speed
-startPlayerSpeed = 1000
+startPlayerSpeed = 300
 
 
 moveBall :: Float -> GameState -> GameState
@@ -142,10 +142,10 @@ moveBall seconds state = state {mainBall = movedPlayerBall} {metaInfo = newMetaI
 
           -- New locations.
           x' = case snd collisions of 
-            True -> x - oldVx + vx
+            True -> x + vx
             False -> x + vx
           y' = case snd collisions of 
-            True -> y - oldVy + vy
+            True -> y + vy
             False -> y + vy
           newPos = (x', y')
 
@@ -160,14 +160,22 @@ moveBall seconds state = state {mainBall = movedPlayerBall} {metaInfo = newMetaI
             if 
               snd collisions 
             then
-              getNewVecFromArray (fst collisions)
+              getResultVector (getNewVectorsFromArray (fst collisions))
             else
               (oldVx, oldVy)
               
-          getNewVecFromArray :: [Maybe Cords] -> Cords
-          getNewVecFromArray [] = (oldVx, oldVy)
-          getNewVecFromArray (Nothing : js) = getNewVecFromArray js
-          getNewVecFromArray (Just j : js) = getNewVec (fst j, snd j) (getColisionPoint (x, y) 10 (fst j, snd j) 10) (oldVx, oldVy)
+          getResultVector :: [Cords] -> Cords
+          getResultVector vecs = (sum (map getI vecs), sum (map getJ vecs))
+          getI :: Cords -> Float
+          getI (i, _) = i
+          getJ :: Cords -> Float
+          getJ (_, j) = j
+
+          getNewVectorsFromArray :: [Maybe Cords] -> [Cords]
+          getNewVectorsFromArray [] = []
+          getNewVectorsFromArray (Nothing : js) = getNewVectorsFromArray js
+          getNewVectorsFromArray (Just j : js) = [getNewVec (fst j, snd j) (getColisionPoint (x, y) 10 (fst j, snd j) 10) (oldVx, oldVy)] ++
+            getNewVectorsFromArray js
           collisions = checkCollision (enemyBalls state)
             where
               checkCollision :: [EnemyBall] -> ([Maybe Cords], Bool)
@@ -215,27 +223,29 @@ moveBall seconds state = state {mainBall = movedPlayerBall} {metaInfo = newMetaI
             (x_collision, y_collision)
             (x_vec_abs, y_vec_abs) =
               if
-                x_vec_abs * (y_collision - y_center) == y_vec_abs * (x_collision - x_center) 
+                x_vec_abs * b == y_vec_abs * a 
               then
-                (-x_vec_abs + 0.01, -y_vec_abs)
+                (-x_vec_abs - 0.01, -y_vec_abs - 0.02)
               else
                 resultVector
               where
-                x_new_vector = x_collision - x_ins
-                y_new_vector = y_collision - y_ins
-                x_ins = 2 * g - x_eov - a
-                y_ins = 2 * h - y_eov - b
-                a = x_center - x_collision
-                b = y_center - y_collision
-                g = h * x_collision / y_collision
-                h = (x_eov + y_eov * temp) / (temp + 1 / temp)
-                temp = b / a
-                x_eov = a - x_vec_abs
-                y_eov = b - y_vec_abs
-                normalizedResVector = normalizeV (x_new_vector, y_new_vector)
-                resultVector = (fst normalizedResVector * magV (x_vec_abs, y_vec_abs),
-                  snd normalizedResVector * magV (x_vec_abs, y_vec_abs))
-                      
+                c = x_center  -- center of static circle, x axis
+                d = y_center  -- center of static circle, y axis
+                a = x_collision - c  -- collision point, x axis, in system centered in (c, d)
+                b = y_collision - d  -- collision point, y axis, in system centered in (c, d)
+                e = a - x_vec_abs  -- point to mirror, x axis
+                f = b - y_vec_abs  -- point to mirror, y axis
+                h = (e + f * b / a) / (b / a + a / b)
+                g = h * a / b
+                x = 2 * g - e - a  -- new vector, x axis
+                y = 2 * h - f - b  -- new vector, y axis   
+                resultVector = (x, y)
+              
+              
+              
+
+              
+                     
 
 -- | Respond to key events.
 handleKeys :: Event -> GameState -> GameState
