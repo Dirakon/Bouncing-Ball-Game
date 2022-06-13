@@ -44,7 +44,7 @@ background = black
 
 -- | Number of frames to show per second.
 fps :: Int
-fps = 20000
+fps = 60
 
 window :: Display
 window = InWindow "Game" (width, height) (offset, offset)
@@ -75,7 +75,7 @@ main = play window background fps initialState render handleKeys update
 
 -- | Update the game by moving the ball and bouncing off walls.
 update :: Float -> GameState -> GameState
-update seconds = moveBall (seconds * 1000)
+update seconds = moveBall (seconds + 1)
 
 -- | Convert a game state into a picture.
 render ::
@@ -93,6 +93,8 @@ render state =
       Just (PlayerBall playerPosition _ _) -> uncurry translate playerPosition $ color ballColor $ circleSolid 10
     ballColor = dark red
 
+startPlayerRestitution = 6
+
 moveBall :: Float -> GameState -> GameState
 moveBall seconds state = state {mainBall = movedPlayerBall} {metaInfo = newMetaInfo}
   where
@@ -109,37 +111,33 @@ moveBall seconds state = state {mainBall = movedPlayerBall} {metaInfo = newMetaI
     -- Move/bounce/destroy ball
     movedPlayerBall = case mainBall state of
       Nothing -> Nothing
-      Just (PlayerBall playerPos playerVel playerRestitution) -> if alive then Just (PlayerBall newPos newVel playerRestitution) else Nothing
+      Just (PlayerBall playerPos playerVel playerRestitution) -> if 
+        alive 
+      then 
+        Just (PlayerBall newPos newVel newPlayerRestitution) 
+      else Nothing
         where
+
           -- Old locations and velocities.
           (x, y) = playerPos
           (oldVx,oldVy) = playerVel
+          newPlayerRestitution = playerRestitution
 
           -- New velocities
           vx
-            | collidedWithEnemyBall = fst newVec
+            | collidedWithEnemyBall = fst newVec / 10
             | collidedWithLeftWall = abs oldVx
             | collidedWithRightWall = (- abs oldVx)
             | otherwise = oldVx
           vy
-            | collidedWithEnemyBall = snd newVec
+            | collidedWithEnemyBall = snd newVec / 10
             | collidedWithCeiling = (- abs oldVy) 
             | otherwise =  oldVy
-          newVel = (vx,vy)
+          newVel = (vx, vy)
 
           -- New locations.
-          x' = if 
-              snd collisions 
-            then
-              x + 3 * vx + vx * seconds
-            else
-              x + vx * seconds
-          y' = if 
-              snd collisions 
-            then
-              y + 3 * vy + vy * seconds
-            else
-              y + vy * seconds
+          x' = x + vx
+          y' = y + vy
           newPos = (x', y')
 
           -- Wall collision checks
@@ -156,6 +154,7 @@ moveBall seconds state = state {mainBall = movedPlayerBall} {metaInfo = newMetaI
               getNewVecFromArray (fst collisions)
             else
               (oldVx, oldVy)
+              
           getNewVecFromArray :: [Maybe Cords] -> Cords
           getNewVecFromArray [] = (oldVx, oldVy)
           getNewVecFromArray (Nothing : js) = getNewVecFromArray js
@@ -206,17 +205,24 @@ moveBall seconds state = state {mainBall = movedPlayerBall} {metaInfo = newMetaI
             (x_center, y_center)
             (x_collision, y_collision)
             (x_vec_abs, y_vec_abs) =
-            (x_new_vector, y_new_vector)
+              if
+                x_vec_abs * (y_collision - y_center) == y_vec_abs * (x_collision - x_center) 
+              then
+                (-x_vec_abs + 0.001, -y_vec_abs)
+              else
+                (x_new_vector, y_new_vector)
               where
-                x_new_vector = x_ins - x_collision
-                y_new_vector = y_ins - y_collision
-                x_ins = 2 * g - x_eov
-                y_ins = 2 * h - y_eov
+                x_new_vector = x_collision - x_ins
+                y_new_vector = y_collision - y_ins
+                x_ins = 2 * g - x_eov - a
+                y_ins = 2 * h - y_eov - b
+                a = x_center - x_collision
+                b = y_center - y_collision
                 g = h * x_collision / y_collision
                 h = (x_eov + y_eov * temp) / (temp + 1 / temp)
-                temp = y_collision / x_collision
-                x_eov = x_collision - x_vec_abs
-                y_eov = y_collision - y_vec_abs
+                temp = b / a
+                x_eov = a - x_vec_abs
+                y_eov = b - y_vec_abs
                       
 
 -- | Respond to key events.
@@ -231,7 +237,7 @@ handleKeys (EventKey (MouseButton LeftButton) Down xPos yPos) state =
       alreadyExistingBall ->  alreadyExistingBall
       
     hasAnyBallsLeft = ballsLeft (metaInfo state) > 0
-    spawnedBall = PlayerBall cannonCoords ballVelocity 1
+    spawnedBall = PlayerBall cannonCoords ballVelocity startPlayerRestitution
     cannonCoords = cannonPosition (metaInfo state)
     mouseCoords = mousePosition (metaInfo state)
     ballVelocity = normalizeV ballDirection
