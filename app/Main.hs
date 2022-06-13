@@ -4,12 +4,14 @@ import Graphics.Gloss
 import Graphics.Gloss.Data.ViewPort
 import Graphics.Gloss.Interface.IO.Game
 import Graphics.Gloss.Data.Vector
+import Data.Maybe
+import Data.Bool (bool)
 
 type Position = (Float, Float)
 type Velocity = (Float, Float)
 type Restitution = Float
 type Speed = Float
-type Cords = (Float, Float)
+type Coords = (Float, Float)
 
 data PlayerBall = PlayerBall Position Velocity Restitution Speed
 
@@ -57,7 +59,7 @@ initialState =
       mainBall = Nothing,
       enemyBalls = [
         EnemyBall (-150,200), EnemyBall (-100,200), EnemyBall (-50,200),
-        EnemyBall (0,200), EnemyBall (50,200), EnemyBall (100,200), 
+        EnemyBall (0,200), EnemyBall (50,200), EnemyBall (100,200),
         EnemyBall (150,200)
         ],
       metaInfo = MetaInfo{
@@ -76,7 +78,7 @@ main = play window background fps initialState render handleKeys update
 
 -- | Update the game by moving the ball and bouncing off walls.
 update :: Float -> GameState -> GameState
-update seconds = moveBall seconds
+update = moveBall
 
 -- | Convert a game state into a picture.
 render ::
@@ -99,27 +101,32 @@ startPlayerRestitution = 6
 startPlayerSpeed :: Speed
 startPlayerSpeed = 1000
 
+playerRadius::Float
+playerRadius = 10
+enemyRadius:: Float
+enemyRadius = 10
+
 
 moveBall :: Float -> GameState -> GameState
 moveBall seconds state = state {mainBall = movedPlayerBall} {metaInfo = newMetaInfo}
   where
-      
+
     -- Decrease balls lefts if ball dies this frame
     newMetaInfo = case mainBall state of
       Just ball -> case movedPlayerBall of
         Nothing -> oldMetaInfo {ballsLeft = ballsLeft oldMetaInfo-1}
         _ -> oldMetaInfo
       _ -> oldMetaInfo
-      where 
+      where
         oldMetaInfo = metaInfo state
 
     -- Move/bounce/destroy ball
     movedPlayerBall = case mainBall state of
       Nothing -> Nothing
-      Just (PlayerBall playerPos playerVel playerRestitution speed) -> if 
-        alive 
-      then 
-        Just (PlayerBall newPos newVel newPlayerRestitution speed) 
+      Just (PlayerBall playerPos playerVel playerRestitution speed) -> if
+        alive
+      then
+        Just (PlayerBall newPos newVel newPlayerRestitution speed)
       else Nothing
         where
 
@@ -136,17 +143,17 @@ moveBall seconds state = state {mainBall = movedPlayerBall} {metaInfo = newMetaI
             | otherwise = oldVx
           vy
             | collidedWithEnemyBall = snd newVec
-            | collidedWithCeiling = (- abs oldVy) 
+            | collidedWithCeiling = (- abs oldVy)
             | otherwise =  oldVy
           newVel = mulSV (speed*seconds) ( normalizeV (vx, vy))
 
           -- New locations.
-          x' = case snd collisions of 
-            True -> x - oldVx + vx
-            False -> x + vx
-          y' = case snd collisions of 
-            True -> y - oldVy + vy
-            False -> y + vy
+          x' = if collidedWithEnemyBall
+            then x - oldVx + vx
+            else x + vx
+          y' = if collidedWithEnemyBall
+            then y - oldVy + vy
+            else y + vy
           newPos = (x', y')
 
           -- Wall collision checks
@@ -155,67 +162,67 @@ moveBall seconds state = state {mainBall = movedPlayerBall} {metaInfo = newMetaI
           collidedWithRightWall = x >= rightWallX (metaInfo state)
           collidedWithFloor = y <= floorY (metaInfo state)
           collidedWithCeiling = y >= ceilingY (metaInfo state)
-          collidedWithEnemyBall = snd collisions
+
+          -- Collision with enemy balls
+          collidedWithEnemyBall = case listToMaybe positionsOfCollidingEnemies of
+            Nothing -> False
+            _ -> True
           newVec =
-            if 
-              snd collisions 
-            then
-              getNewVecFromArray (fst collisions)
-            else
-              (oldVx, oldVy)
-              
-          getNewVecFromArray :: [Maybe Cords] -> Cords
+            if collidedWithEnemyBall
+            then getNewVecFromArray positionsOfCollidingEnemies
+            else (oldVx, oldVy)
+
+          getNewVecFromArray :: [Coords] -> Coords
           getNewVecFromArray [] = (oldVx, oldVy)
-          getNewVecFromArray (Nothing : js) = getNewVecFromArray js
-          getNewVecFromArray (Just j : js) = getNewVec (fst j, snd j) (getColisionPoint (x, y) 10 (fst j, snd j) 10) (oldVx, oldVy)
-          collisions = checkCollision (enemyBalls state)
+          getNewVecFromArray (j : js) =
+            getNewVec j (getCollisionPoint (x, y) playerRadius j enemyRadius) (oldVx, oldVy)
+
+          positionsOfCollidingEnemies = getPositionsOfCollidingEnemies (enemyBalls state)
             where
-              checkCollision :: [EnemyBall] -> ([Maybe Cords], Bool)
-              checkCollision [] = ([Nothing], False)
-              checkCollision enemyBalls = anyCollision (map ttt enemyBalls)
+              getPositionsOfCollidingEnemies :: [EnemyBall] -> [Coords]
+              getPositionsOfCollidingEnemies enemyBalls = map getPositionOf (filter collidingWith enemyBalls)
                 where
-                  ttt :: EnemyBall -> (Maybe Cords, Bool)
-                  ttt (EnemyBall enemyPosition) = ggg
+                  collidingWith :: EnemyBall -> Bool
+                  collidingWith (EnemyBall enemyPosition) = 
+                    distanceFromEnemyCenter <= playerRadius + enemyRadius
                     where
                       (i, j) = enemyPosition
-                      ggg = 
-                        if 
-                          condition 
-                        then 
-                          (Just (i, j), True) else (Nothing, False)
-                        where
-                          condition = sqrt((i - x)^2 + (j - y)^2) <= 20
-                  anyCollision :: [(Maybe Cords, Bool)] -> ([Maybe Cords], Bool)
-                  anyCollision [] = ([Nothing], False)
-                  anyCollision arr = ((map fst arr), or (map snd arr))
+                      distanceFromEnemyCenter = sqrt((i - x)^2 + (j - y)^2)
+                  getPositionOf (EnemyBall position) = position
 
-          getColisionPoint :: 
-            Cords -> 
+
+          getCollisionPoint ::
+            Coords ->
+              -- Player position
             Float ->
-            Cords ->
+              -- Player radius
+            Coords ->
+              -- Enemy position
             Float ->
-            Cords
-          getColisionPoint 
+              -- Enemy radius
+            Coords
+              -- Collision point
+          getCollisionPoint
             (playerBallX, playerBallY)
             playerRadius
             (enemyBallX, enemyBallY)
             enemyRadius =
-            ((playerBallX * enemyRadius + enemyBallX * playerRadius) / radiusSum, 
+            ((playerBallX * enemyRadius + enemyBallX * playerRadius) / radiusSum,
             (playerBallY * enemyRadius + enemyBallY * playerRadius) / radiusSum)
               where
                 radiusSum = playerRadius + enemyRadius
-            
-          getNewVec :: 
-            Cords
-            -> Cords
-            -> Cords
-            -> Cords
-          getNewVec 
+
+          getNewVec ::
+            Coords
+            -> Coords
+            -> Coords
+            -> Coords
+          getNewVec
             (x_center, y_center)
             (x_collision, y_collision)
             (x_vec_abs, y_vec_abs) =
               if
-                x_vec_abs * (y_collision - y_center) == y_vec_abs * (x_collision - x_center) 
+                x_vec_abs * (y_collision - y_center) == y_vec_abs * (x_collision - x_center)
               then
                 (-x_vec_abs + 0.01, -y_vec_abs)
               else
@@ -235,7 +242,7 @@ moveBall seconds state = state {mainBall = movedPlayerBall} {metaInfo = newMetaI
                 normalizedResVector = normalizeV (x_new_vector, y_new_vector)
                 resultVector = (fst normalizedResVector * magV (x_vec_abs, y_vec_abs),
                   snd normalizedResVector * magV (x_vec_abs, y_vec_abs))
-                      
+
 
 -- | Respond to key events.
 handleKeys :: Event -> GameState -> GameState
@@ -247,7 +254,7 @@ handleKeys (EventKey (MouseButton LeftButton) Down xPos yPos) state =
     newMainBall = case mainBall state of
       Nothing -> if hasAnyBallsLeft then  Just spawnedBall else Nothing
       alreadyExistingBall ->  alreadyExistingBall
-      
+
     hasAnyBallsLeft = ballsLeft (metaInfo state) > 0
     spawnedBall = PlayerBall cannonCoords ballVelocity startPlayerRestitution startPlayerSpeed
     cannonCoords = cannonPosition (metaInfo state)
@@ -266,7 +273,7 @@ handleKeys (EventMotion  (xPos, yPos)) state =
 -- For an 's' keypress, reset the game state
 handleKeys (EventKey (Char 's') Down _ _) state =
   initialState
-  
+
 -- Do nothing for all other events.
 handleKeys _ game = game
 
