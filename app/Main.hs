@@ -1,41 +1,55 @@
 module Main (main) where
 
+import Data.Bool (bool)
+import Data.Maybe
 import Graphics.Gloss
+import Graphics.Gloss.Data.Vector
 import Graphics.Gloss.Data.ViewPort
 import Graphics.Gloss.Interface.IO.Game
-import Graphics.Gloss.Data.Vector
-import Data.Maybe
-import Data.Bool (bool)
 
 type Position = (Float, Float)
+
 type Velocity = (Float, Float)
+
 type Restitution = Float
+
 type Speed = Float
+
 type Coords = (Float, Float)
 
-data PlayerBall = PlayerBall Position Velocity Restitution Speed
+data PlayerBall = PlayerBall
+  { playerPosition :: Position,
+    velocity :: Velocity,
+    restitution :: Restitution,
+    speed :: Speed,
+    playerRadius :: Float
+  }
 
-data EnemyBall = EnemyBall Position
+data EnemyBallType = Destructible Int | Indestructible deriving (Eq)
 
-data MetaInfo = MetaInfo {
-  ballsLeft :: Int,
-  mousePosition :: Position,
-  cannonPosition :: Position,
-  leftWallX :: Float,
-  rightWallX :: Float,
-  floorY :: Float,
-  ceilingY :: Float
-}
+data EnemyBall = EnemyBall
+  { enemyPosition :: Position,
+    enemyRadius :: Float,
+    ballType :: EnemyBallType
+  }
+  deriving (Eq)
+
+data MetaInfo = MetaInfo
+  { ballsLeft :: Int,
+    mousePosition :: Position,
+    cannonPosition :: Position,
+    leftWallX :: Float,
+    rightWallX :: Float,
+    floorY :: Float,
+    ceilingY :: Float
+  }
 
 -- | A data structure to hold the state of the game.
-data GameState
-  = Game
-  {
-    mainBall :: Maybe PlayerBall,
+data GameState = Game
+  { mainBall :: Maybe PlayerBall,
     enemyBalls :: [EnemyBall],
     metaInfo :: MetaInfo
   }
-
 
 width, height, offset :: Int
 width = 700
@@ -55,22 +69,26 @@ window = InWindow "Game" (width, height) (offset, offset)
 initialState :: GameState
 initialState =
   Game
-    {
-      mainBall = Nothing,
-      enemyBalls = [
-        EnemyBall (-150,200), EnemyBall (-100,200), EnemyBall (-50,200),
-        EnemyBall (0,200), EnemyBall (50,200), EnemyBall (100,200),
-        EnemyBall (150,200)
+    { mainBall = Nothing,
+      enemyBalls =
+        [ EnemyBall (-150, -300) 10 (Destructible 1),
+          EnemyBall (-100, 0) 5 (Destructible 1),
+          EnemyBall (-50, -200) 20 (Destructible 1),
+          EnemyBall (0, -200) 30 (Destructible 1),
+          EnemyBall (50, 100) 10 (Destructible 1),
+          EnemyBall (100, 200) 5 (Destructible 1),
+          EnemyBall (150, 0) 2 (Destructible 1)
         ],
-      metaInfo = MetaInfo{
-        ballsLeft = 300,
-        mousePosition = (0,0),
-        cannonPosition = (0,300),
-        leftWallX = -300,
-        rightWallX = 300,
-        floorY = -300,
-        ceilingY = 300
-      }
+      metaInfo =
+        MetaInfo
+          { ballsLeft = 300,
+            mousePosition = (0, 0),
+            cannonPosition = (0, 300),
+            leftWallX = -300,
+            rightWallX = 300,
+            floorY = -300,
+            ceilingY = 300
+          }
     }
 
 main :: IO ()
@@ -78,81 +96,81 @@ main = play window background fps initialState render handleKeys update
 
 -- | Update the game by moving the ball and bouncing off walls.
 update :: Float -> GameState -> GameState
-update = moveBall
+update seconds state = case mainBall state of
+  Nothing -> state
+  Just player -> moveBall player seconds state
 
 -- | Convert a game state into a picture.
 render ::
-  GameState       -- The game state to render.
-  -> Picture      -- A picture of this game state.
+  GameState -> -- The game state to render.
+  Picture -- A picture of this game state.
 render state =
   pictures [ball] <> pictures allEnemyBalls
   where
     allEnemyBalls = map drawEnemyBall (enemyBalls state)
       where
         drawEnemyBall :: EnemyBall -> Picture
-        drawEnemyBall (EnemyBall enemyPosition) = uncurry translate enemyPosition $ color ballColor $ circleSolid 10
+        drawEnemyBall (EnemyBall enemyPosition radius _) = uncurry translate enemyPosition $ color ballColor $ circleSolid radius
     ball = case mainBall state of
       Nothing -> blank
-      Just (PlayerBall playerPosition _ _ _) -> uncurry translate playerPosition $ color ballColor $ circleSolid 10
+      Just (PlayerBall playerPosition _ _ _ radius) -> uncurry translate playerPosition $ color ballColor $ circleSolid radius
     ballColor = dark red
 
 startPlayerRestitution :: Restitution
 startPlayerRestitution = 6
+
 startPlayerSpeed :: Speed
 startPlayerSpeed = 300
 
-playerRadius::Float
-playerRadius = 10
-enemyRadius:: Float
-enemyRadius = 10
+startPlayerRadius :: Float
+startPlayerRadius = 10
 
-
-moveBall :: Float -> GameState -> GameState
-moveBall seconds state = state {mainBall = movedPlayerBall} {metaInfo = newMetaInfo}
-  where
-
-    -- Decrease balls lefts if ball dies this frame
-    newMetaInfo = case mainBall state of
-      Just ball -> case movedPlayerBall of
-        Nothing -> oldMetaInfo {ballsLeft = ballsLeft oldMetaInfo-1}
+moveBall :: PlayerBall -> Float -> GameState -> GameState
+moveBall
+  playerBall@(PlayerBall playerPos playerVel playerRestitution speed playerRadius)
+  seconds
+  state =
+    state {mainBall = movedPlayerBall} {metaInfo = newMetaInfo} {enemyBalls = newEnemyBalls}
+    where
+      -- Decrease balls lefts if ball dies this frame
+      newMetaInfo = case movedPlayerBall of
+        Nothing -> oldMetaInfo {ballsLeft = ballsLeft oldMetaInfo - 1}
         _ -> oldMetaInfo
-      _ -> oldMetaInfo
-      where
-        oldMetaInfo = metaInfo state
-
-    -- Move/bounce/destroy ball
-    movedPlayerBall = case mainBall state of
-      Nothing -> Nothing
-      Just (PlayerBall playerPos playerVel playerRestitution speed) -> if
-        alive
-      then
-        Just (PlayerBall newPos newVel newPlayerRestitution speed)
-      else Nothing
         where
+          oldMetaInfo = metaInfo state
 
-          -- Old locations and velocities.
+      -- Destroy colliding enemy balls
+      newEnemyBalls = filter (`notElem` collidingEnemies) (enemyBalls state)
+      collidingEnemies = getCollidingBalls playerPos (enemyBalls state) playerRadius
+
+      -- Move/bounce/destroy ball
+      movedPlayerBall =
+        if alive
+          then Just (PlayerBall newPos newVel playerRestitution speed playerRadius)
+          else Nothing
+        where
+          -- Old locations and velocities
           (x, y) = playerPos
-          (oldVx,oldVy) = playerVel
-          newPlayerRestitution = playerRestitution
+          (oldVx, oldVy) = playerVel
 
           -- New velocities
           vx
-            | collidedWithEnemyBall = fst newVec
+            | collidedWithEnemyBall = fst velocityBouncedOnEnemies
             | collidedWithLeftWall = abs oldVx
-            | collidedWithRightWall = (- abs oldVx)
+            | collidedWithRightWall = -abs oldVx
             | otherwise = oldVx
           vy
-            | collidedWithEnemyBall = snd newVec
-            | collidedWithCeiling = (- abs oldVy)
-            | otherwise =  oldVy
-          newVel = mulSV (speed*seconds) ( normalizeV (vx, vy))
+            | collidedWithEnemyBall = snd velocityBouncedOnEnemies
+            | collidedWithCeiling = -abs oldVy
+            | otherwise = oldVy
+          newVel = mulSV (speed * seconds) (normalizeV (vx, vy))
 
-          -- New locations.
+          -- New locations
           x' = x + vx
           y' = y + vy
           newPos = (x', y')
 
-          -- Wall collision checks
+          -- Wall collisions
           alive = not collidedWithFloor
           collidedWithLeftWall = x <= leftWallX (metaInfo state)
           collidedWithRightWall = x >= rightWallX (metaInfo state)
@@ -160,126 +178,119 @@ moveBall seconds state = state {mainBall = movedPlayerBall} {metaInfo = newMetaI
           collidedWithCeiling = y >= ceilingY (metaInfo state)
 
           -- Collision with enemy balls
-          collidedWithEnemyBall = case listToMaybe positionsOfCollidingEnemies of
+          velocityBouncedOnEnemies = playerVelocityOnEnemyCollision playerBall collidingEnemies
+          collidedWithEnemyBall = case listToMaybe collidingEnemies of
             Nothing -> False
             _ -> True
-          newVec =
-            if
-              collidedWithEnemyBall
-            then
-              vectorSum (getNewVectorsFromArray positionsOfCollidingEnemies)
-            else
-              (oldVx, oldVy)
 
-          vectorSum :: [Coords] -> Coords
-          vectorSum vecs = (sum (map getI vecs), sum (map getJ vecs))
-          getI :: Coords -> Float
-          getI (i, _) = i
-          getJ :: Coords -> Float
-          getJ (_, j) = j
+playerVelocityOnEnemyCollision :: PlayerBall -> [EnemyBall] -> Vector
+playerVelocityOnEnemyCollision
+  playerBall@(PlayerBall playerPos@(playerX, playerY) playerVel@(oldVx, oldVy) playerRestitution speed playerRadius)
+  collidingEnemies =
+    vectorSum (getNewVectorsFromArray collidingEnemies)
+    where
+      getNewVectorsFromArray :: [EnemyBall] -> [Coords]
+      getNewVectorsFromArray [] = []
+      getNewVectorsFromArray ((EnemyBall position enemyRadius _) : js) =
+        getNewVec position (getCollisionPoint playerPos playerRadius position enemyRadius) (oldVx, oldVy) :
+        getNewVectorsFromArray js
+      getCollisionPoint ::
+        Coords ->
+        -- Player position
+        Float ->
+        -- Player radius
+        Coords ->
+        -- Enemy position
+        Float ->
+        -- Enemy radius
+        Coords
+      -- Collision point
+      getCollisionPoint
+        (playerBallX, playerBallY)
+        playerRadius
+        (enemyBallX, enemyBallY)
+        enemyRadius =
+          ( (playerBallX * enemyRadius + enemyBallX * playerRadius) / radiusSum,
+            (playerBallY * enemyRadius + enemyBallY * playerRadius) / radiusSum
+          )
+          where
+            radiusSum = playerRadius + enemyRadius
+      getNewVec ::
+        Coords ->
+        Coords ->
+        Coords ->
+        Coords
+      getNewVec
+        (x_center, y_center)
+        (x_collision, y_collision)
+        (x_vec_abs, y_vec_abs) =
+          if x_vec_abs * b == y_vec_abs * a
+            then (-x_vec_abs - 0.01, -y_vec_abs - 0.02)
+            else resultVector
+          where
+            c = x_center -- center of static circle, x axis
+            d = y_center -- center of static circle, y axis
+            a = x_collision - c -- collision point, x axis, in system centered in (c, d)
+            b = y_collision - d -- collision point, y axis, in system centered in (c, d)
+            e = a - x_vec_abs -- point to mirror, x axis
+            f = b - y_vec_abs -- point to mirror, y axis
+            h = (e + f * b / a) / (b / a + a / b)
+            g = h * a / b
+            x = 2 * g - e - a -- new vector, x axis
+            y = 2 * h - f - b -- new vector, y axis
+            resultVector = (x, y)
 
-          getNewVectorsFromArray :: [Coords] -> [Coords]
-          getNewVectorsFromArray [] = []
-          getNewVectorsFromArray ( j : js) = getNewVec j (getCollisionPoint (x, y) playerRadius j enemyRadius) (oldVx, oldVy) :
-            getNewVectorsFromArray js
-          positionsOfCollidingEnemies = getPositionsOfCollidingEnemies (enemyBalls state)
-            where
-              getPositionsOfCollidingEnemies :: [EnemyBall] -> [Coords]
-              getPositionsOfCollidingEnemies enemyBalls = map getPositionOf (filter collidingWith enemyBalls)
-                where
-                  collidingWith :: EnemyBall -> Bool
-                  collidingWith (EnemyBall enemyPosition) =
-                    distanceFromEnemyCenter <= playerRadius + enemyRadius
-                    where
-                      (i, j) = enemyPosition
-                      distanceFromEnemyCenter = sqrt((i - x)^2 + (j - y)^2)
-                  getPositionOf (EnemyBall position) = position
-
-          getCollisionPoint ::
-            Coords ->
-              -- Player position
-            Float ->
-              -- Player radius
-            Coords ->
-              -- Enemy position
-            Float ->
-              -- Enemy radius
-            Coords
-              -- Collision point
-          getCollisionPoint
-            (playerBallX, playerBallY)
-            playerRadius
-            (enemyBallX, enemyBallY)
-            enemyRadius =
-            ((playerBallX * enemyRadius + enemyBallX * playerRadius) / radiusSum,
-            (playerBallY * enemyRadius + enemyBallY * playerRadius) / radiusSum)
-              where
-                radiusSum = playerRadius + enemyRadius
-
-          getNewVec ::
-            Coords
-            -> Coords
-            -> Coords
-            -> Coords
-          getNewVec
-            (x_center, y_center)
-            (x_collision, y_collision)
-            (x_vec_abs, y_vec_abs) =
-              if
-                x_vec_abs * b == y_vec_abs * a
-              then
-                (-x_vec_abs - 0.01, -y_vec_abs - 0.02)
-              else
-                resultVector
-              where
-                c = x_center  -- center of static circle, x axis
-                d = y_center  -- center of static circle, y axis
-                a = x_collision - c  -- collision point, x axis, in system centered in (c, d)
-                b = y_collision - d  -- collision point, y axis, in system centered in (c, d)
-                e = a - x_vec_abs  -- point to mirror, x axis
-                f = b - y_vec_abs  -- point to mirror, y axis
-                h = (e + f * b / a) / (b / a + a / b)
-                g = h * a / b
-                x = 2 * g - e - a  -- new vector, x axis
-                y = 2 * h - f - b  -- new vector, y axis   
-                resultVector = (x, y)
-
-
-
+getCollidingBalls :: Velocity -> [EnemyBall] -> Float -> [EnemyBall]
+getCollidingBalls
+  (playerX, playerY)
+  enemyBalls
+  playerRadius =
+    filter collidingWith enemyBalls
+    where
+      collidingWith :: EnemyBall -> Bool
+      collidingWith (EnemyBall enemyPosition enemyRadius _) =
+        distanceFromEnemyCenter <= playerRadius + enemyRadius
+        where
+          (i, j) = enemyPosition
+          distanceFromEnemyCenter = sqrt ((i - playerX) ^ 2 + (j - playerY) ^ 2)
 
 -- | Respond to key events.
 handleKeys :: Event -> GameState -> GameState
-
 -- Spawn ball on mouse click (if has balls left and ball is not deployed yet)
 handleKeys (EventKey (MouseButton LeftButton) Down xPos yPos) state =
   state {mainBall = newMainBall}
   where
     newMainBall = case mainBall state of
-      Nothing -> if hasAnyBallsLeft then  Just spawnedBall else Nothing
-      alreadyExistingBall ->  alreadyExistingBall
+      Nothing -> if hasAnyBallsLeft then Just spawnedBall else Nothing
+      alreadyExistingBall -> alreadyExistingBall
 
     hasAnyBallsLeft = ballsLeft (metaInfo state) > 0
-    spawnedBall = PlayerBall cannonCoords ballVelocity startPlayerRestitution startPlayerSpeed
+    spawnedBall = PlayerBall cannonCoords ballVelocity startPlayerRestitution startPlayerSpeed startPlayerRadius
     cannonCoords = cannonPosition (metaInfo state)
     mouseCoords = mousePosition (metaInfo state)
     ballVelocity = normalizeV ballDirection
     ballDirection = vectorDiff mouseCoords cannonCoords
 
-
 -- Update mouse position in meta info
-handleKeys (EventMotion  (xPos, yPos)) state =
+handleKeys (EventMotion (xPos, yPos)) state =
   state {metaInfo = newMetaInfo}
   where
     oldMetaInfo = metaInfo state
-    newMetaInfo = oldMetaInfo {mousePosition = (xPos,yPos)}
+    newMetaInfo = oldMetaInfo {mousePosition = (xPos, yPos)}
 
--- For an 's' keypress, reset the game state
+-- For an 's' key pressed, reset the game state
 handleKeys (EventKey (Char 's') Down _ _) state =
   initialState
-
 -- Do nothing for all other events.
 handleKeys _ game = game
 
+vectorSum :: [Vector] -> Vector
+vectorSum vectors = (sum (map getI vectors), sum (map getJ vectors))
+  where
+    getI :: Coords -> Float
+    getI (i, _) = i
+    getJ :: Coords -> Float
+    getJ (_, j) = j
 
 vectorDiff :: Vector -> Vector -> Vector
 vectorDiff vec1 vec2 = (fst vec1 - fst vec2, snd vec1 - snd vec2)
