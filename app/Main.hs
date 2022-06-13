@@ -8,9 +8,10 @@ import Graphics.Gloss.Data.Vector
 type Position = (Float, Float)
 type Velocity = (Float, Float)
 type Restitution = Float
+type Speed = Float
 type Cords = (Float, Float)
 
-data PlayerBall = PlayerBall Position Velocity Restitution
+data PlayerBall = PlayerBall Position Velocity Restitution Speed
 
 data EnemyBall = EnemyBall Position
 
@@ -75,7 +76,7 @@ main = play window background fps initialState render handleKeys update
 
 -- | Update the game by moving the ball and bouncing off walls.
 update :: Float -> GameState -> GameState
-update seconds = moveBall (seconds + 1)
+update seconds = moveBall seconds
 
 -- | Convert a game state into a picture.
 render ::
@@ -90,10 +91,14 @@ render state =
         drawEnemyBall (EnemyBall enemyPosition) = uncurry translate enemyPosition $ color ballColor $ circleSolid 10
     ball = case mainBall state of
       Nothing -> blank
-      Just (PlayerBall playerPosition _ _) -> uncurry translate playerPosition $ color ballColor $ circleSolid 10
+      Just (PlayerBall playerPosition _ _ _) -> uncurry translate playerPosition $ color ballColor $ circleSolid 10
     ballColor = dark red
 
+startPlayerRestitution :: Restitution
 startPlayerRestitution = 6
+startPlayerSpeed :: Speed
+startPlayerSpeed = 1000
+
 
 moveBall :: Float -> GameState -> GameState
 moveBall seconds state = state {mainBall = movedPlayerBall} {metaInfo = newMetaInfo}
@@ -111,10 +116,10 @@ moveBall seconds state = state {mainBall = movedPlayerBall} {metaInfo = newMetaI
     -- Move/bounce/destroy ball
     movedPlayerBall = case mainBall state of
       Nothing -> Nothing
-      Just (PlayerBall playerPos playerVel playerRestitution) -> if 
+      Just (PlayerBall playerPos playerVel playerRestitution speed) -> if 
         alive 
       then 
-        Just (PlayerBall newPos newVel newPlayerRestitution) 
+        Just (PlayerBall newPos newVel newPlayerRestitution speed) 
       else Nothing
         where
 
@@ -133,7 +138,7 @@ moveBall seconds state = state {mainBall = movedPlayerBall} {metaInfo = newMetaI
             | collidedWithEnemyBall = snd newVec
             | collidedWithCeiling = (- abs oldVy) 
             | otherwise =  oldVy
-          newVel = (vx, vy)
+          newVel = mulSV (speed*seconds) ( normalizeV (vx, vy))
 
           -- New locations.
           x' = case snd collisions of 
@@ -244,7 +249,7 @@ handleKeys (EventKey (MouseButton LeftButton) Down xPos yPos) state =
       alreadyExistingBall ->  alreadyExistingBall
       
     hasAnyBallsLeft = ballsLeft (metaInfo state) > 0
-    spawnedBall = PlayerBall cannonCoords ballVelocity startPlayerRestitution
+    spawnedBall = PlayerBall cannonCoords ballVelocity startPlayerRestitution startPlayerSpeed
     cannonCoords = cannonPosition (metaInfo state)
     mouseCoords = mousePosition (metaInfo state)
     ballVelocity = normalizeV ballDirection
