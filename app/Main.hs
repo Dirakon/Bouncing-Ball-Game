@@ -7,6 +7,10 @@ import Graphics.Gloss.Data.Vector
 import Graphics.Gloss.Data.ViewPort
 import Graphics.Gloss.Interface.IO.Game
 
+
+import Data.Word
+import Data.ByteString (ByteString, pack)
+
 type Position = (Float, Float)
 
 type Velocity = (Float, Float)
@@ -27,11 +31,11 @@ data PlayerBall = PlayerBall
 
 data EnemyBallType = Destructible Int | Indestructible deriving (Eq)
 
-data EnemyBall = EnemyBall
-  { enemyPosition :: Position,
-    enemyRadius :: Float,
-    ballType :: EnemyBallType
-  }
+data EnemyPeg = EnemyPeg
+ { enemyPosition :: Position,
+   enemyRadius :: Float,
+   ballType :: EnemyBallType
+ }
   deriving (Eq)
 
 data MetaInfo = MetaInfo
@@ -47,7 +51,7 @@ data MetaInfo = MetaInfo
 -- | A data structure to hold the state of the game.
 data GameState = Game
   { mainBall :: Maybe PlayerBall,
-    enemyBalls :: [EnemyBall],
+    enemyBalls :: [EnemyPeg],
     metaInfo :: MetaInfo
   }
 
@@ -71,13 +75,13 @@ initialState =
   Game
     { mainBall = Nothing,
       enemyBalls =
-        [ EnemyBall (-150, -300) 10 (Destructible 1),
-          EnemyBall (-100, 0) 5 (Destructible 1),
-          EnemyBall (-50, -200) 20 (Destructible 1),
-          EnemyBall (0, -200) 30 (Destructible 1),
-          EnemyBall (50, 100) 10 (Destructible 1),
-          EnemyBall (100, 200) 5 (Destructible 1),
-          EnemyBall (150, 0) 2 (Destructible 1)
+        [ EnemyPeg (-150, -300) 10 (Destructible 1),
+          EnemyPeg (-100, 0) 5 (Destructible 1),
+          EnemyPeg (-50, -200) 20 (Destructible 1),
+          EnemyPeg (0, -200) 30 (Destructible 3),
+          EnemyPeg (50, 100) 10 (Destructible 1),
+          EnemyPeg (100, 200) 5 (Destructible 1),
+          EnemyPeg (150, 0) 2 (Destructible 1)
         ],
       metaInfo =
         MetaInfo
@@ -99,7 +103,18 @@ update :: Float -> GameState -> GameState
 update seconds state = case mainBall state of
   Nothing -> state
   Just player -> moveBall player seconds state
+  
+purple :: [Word8]
+purple = [128, 0, 128, 255]
 
+whiter :: [Word8]
+whiter = [255,255,255,255]
+
+bitmapData :: ByteString
+bitmapData = pack $ take (300*300*4) (cycle (purple++purple++purple++purple++purple ++purple++purple  ++ whiter))
+
+--ourPicture :: Picture
+--ourPicture = bitmapOfByteString 300 300 (BitmapFormat TopToBottom PxRGBA) bitmapData True
 -- | Convert a game state into a picture.
 render ::
   GameState -> -- The game state to render.
@@ -109,8 +124,8 @@ render state =
   where
     allEnemyBalls = map drawEnemyBall (enemyBalls state)
       where
-        drawEnemyBall :: EnemyBall -> Picture
-        drawEnemyBall (EnemyBall enemyPosition radius _) = uncurry translate enemyPosition $ color ballColor $ circleSolid radius
+        drawEnemyBall :: EnemyPeg -> Picture
+        drawEnemyBall (EnemyPeg enemyPosition radius _) = uncurry translate enemyPosition $ color ballColor $ circleSolid radius
     ball = case mainBall state of
       Nothing -> blank
       Just (PlayerBall playerPosition _ _ _ radius) -> uncurry translate playerPosition $ color ballColor $ circleSolid radius
@@ -124,6 +139,9 @@ startPlayerSpeed = 300
 
 startPlayerRadius :: Float
 startPlayerRadius = 10
+
+gravity :: Vector
+gravity = (0,-10)
 
 moveBall :: PlayerBall -> Float -> GameState -> GameState
 moveBall
@@ -140,13 +158,25 @@ moveBall
           oldMetaInfo = metaInfo state
 
       -- Destroy colliding enemy balls
-      newEnemyBalls = filter (`notElem` collidingEnemies) (enemyBalls state)
+      newEnemyBalls =filter (not . wastedDurability) (map decreaseDurabilityOnCollidingEnemies (enemyBalls state))
+
+      decreaseDurabilityOnCollidingEnemies enemy = case ballType enemy of
+        Destructible durability ->
+          if enemy `elem` collidingEnemies
+            then enemy {ballType = Destructible (durability-1)}
+            else enemy
+        _ -> enemy
+
+      wastedDurability enemy = case ballType enemy of
+        Destructible durability -> durability <= 0
+        _ -> False
+
       collidingEnemies = getCollidingBalls playerPos (enemyBalls state) playerRadius
 
       -- Move/bounce/destroy ball
       movedPlayerBall =
         if alive
-          then Just (PlayerBall newPos newVel playerRestitution speed playerRadius)
+          then Just (PlayerBall newPos (mulSV seconds newVel) playerRestitution newSpeed playerRadius)
           else Nothing
         where
           -- Old locations and velocities
@@ -163,7 +193,9 @@ moveBall
             | collidedWithEnemyBall = snd velocityBouncedOnEnemies
             | collidedWithCeiling = -abs oldVy
             | otherwise = oldVy
-          newVel = mulSV (speed * seconds) (normalizeV (vx, vy))
+          newVel = vectorSum[ gravity,  mulSV speed (normalizeV (vx, vy))]
+          applyGravity vec = vectorSum [vec,mulSV seconds gravity]
+          newSpeed = magV newVel
 
           -- New locations
           x' = x + vx
@@ -183,15 +215,15 @@ moveBall
             Nothing -> False
             _ -> True
 
-playerVelocityOnEnemyCollision :: PlayerBall -> [EnemyBall] -> Vector
+playerVelocityOnEnemyCollision :: PlayerBall -> [EnemyPeg] -> Vector
 playerVelocityOnEnemyCollision
   playerBall@(PlayerBall playerPos@(playerX, playerY) playerVel@(oldVx, oldVy) playerRestitution speed playerRadius)
   collidingEnemies =
     vectorSum (getNewVectorsFromArray collidingEnemies)
     where
-      getNewVectorsFromArray :: [EnemyBall] -> [Coords]
+      getNewVectorsFromArray :: [EnemyPeg] -> [Coords]
       getNewVectorsFromArray [] = []
-      getNewVectorsFromArray ((EnemyBall position enemyRadius _) : js) =
+      getNewVectorsFromArray ((EnemyPeg position enemyRadius _) : js) =
         getNewVec position (getCollisionPoint playerPos playerRadius position enemyRadius) (oldVx, oldVy) :
         getNewVectorsFromArray js
       getCollisionPoint ::
@@ -217,9 +249,13 @@ playerVelocityOnEnemyCollision
             radiusSum = playerRadius + enemyRadius
       getNewVec ::
         Coords ->
+          -- Position of enemy ball
         Coords ->
+          -- Collision point of enemy ball
         Coords ->
+          -- Old velocity of player ball
         Coords
+        -- New velocity (on collision with this one enemy ball)
       getNewVec
         (x_center, y_center)
         (x_collision, y_collision)
@@ -240,15 +276,15 @@ playerVelocityOnEnemyCollision
             y = 2 * h - f - b -- new vector, y axis
             resultVector = (x, y)
 
-getCollidingBalls :: Velocity -> [EnemyBall] -> Float -> [EnemyBall]
+getCollidingBalls :: Velocity -> [EnemyPeg] -> Float -> [EnemyPeg]
 getCollidingBalls
   (playerX, playerY)
   enemyBalls
   playerRadius =
     filter collidingWith enemyBalls
     where
-      collidingWith :: EnemyBall -> Bool
-      collidingWith (EnemyBall enemyPosition enemyRadius _) =
+      collidingWith :: EnemyPeg -> Bool
+      collidingWith (EnemyPeg enemyPosition enemyRadius _) =
         distanceFromEnemyCenter <= playerRadius + enemyRadius
         where
           (i, j) = enemyPosition
