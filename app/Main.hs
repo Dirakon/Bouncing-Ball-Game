@@ -8,7 +8,7 @@ import Graphics.Gloss.Data.ViewPort
 import Graphics.Gloss.Interface.IO.Game
 import Data.Word
 import Data.ByteString (ByteString, pack)
-import Types
+import Types(Position, Velocity, Restitution, Speed, Coords, PlayerBall(..), EnemyBallType(..), EnemyPeg(..), MetaInfo(..))
 import MapEditor
 
 
@@ -105,7 +105,7 @@ startPlayerRadius :: Float
 startPlayerRadius = 10
 
 gravity :: Vector
-gravity = (0,-10)
+gravity = (0,-6)
 
 moveBall :: PlayerBall -> Float -> GameState -> GameState
 moveBall

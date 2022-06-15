@@ -1,4 +1,4 @@
-module Types where
+module Types(Position, Velocity, Restitution, Speed,Coords, PlayerBall(..), EnemyBallType(..), EnemyPeg(..), MetaInfo(..)) where
 
 type Position = (Float, Float)
 
@@ -35,11 +35,4 @@ data MetaInfo = MetaInfo
     rightWallX :: Float,
     floorY :: Float,
     ceilingY :: Float
-  }
-
--- | A data structure to hold the state of the game.
-data GameState = Game
-  { mainBall :: Maybe PlayerBall,
-    enemyBalls :: [EnemyPeg],
-    metaInfo :: MetaInfo
   }
