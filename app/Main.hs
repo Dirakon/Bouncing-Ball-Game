@@ -9,7 +9,7 @@ import Graphics.Gloss.Interface.IO.Game
 import Data.Word
 import Data.ByteString (ByteString, pack)
 import Types(Position, Velocity, Restitution, Speed, Coords, PlayerBall(..), EnemyBallType(..), EnemyPeg(..), MetaInfo(..), GameState(..), MapInfo(..))
-import MapEditor hiding (MapEditorState(..))
+import MapEditor hiding (MapEditorState(..), handleKeys, render, update)
 import Consts
 import MathUtils
 
@@ -32,8 +32,8 @@ initialState =
                 enemyBalls =
                 [ EnemyPeg (-150, -300) 10 (Destructible 1),
                   EnemyPeg (-100, 0) 5 (Destructible 1),
-                  EnemyPeg (-50, -200) 20 (Destructible 1),
-                  EnemyPeg (0, -200) 30 (Destructible 3),
+                  EnemyPeg (-50, -200) 20 (Destructible 300),
+                  EnemyPeg (0, -200) 30 (Destructible 300),
                   EnemyPeg (50, 100) 10 (Destructible 1),
                   EnemyPeg (100, 200) 5 (Destructible 1),
                   EnemyPeg (150, 0) 2 (Destructible 1)
@@ -48,7 +48,8 @@ initialState =
     }
 
 main :: IO ()
-main = play window background fps initialState render handleKeys update
+--main = play window background fps initialState render handleKeys update
+main = tt window fps
 
 -- | Update the game by moving the ball and bouncing off walls.
 update :: Float -> GameState -> GameState
@@ -94,14 +95,14 @@ moveBall
       -- Decrease balls lefts if ball dies this frame
       newMetaInfo = case movedPlayerBall of
         Nothing -> oldMetaInfo {ballsLeft = ballsLeft oldMetaInfo - 1} {mapInfo = newMapInfo}
-        _ -> oldMetaInfo
+        _ -> oldMetaInfo {mapInfo = newMapInfo}
         where
           oldMetaInfo = metaInfo state
-          newMapInfo = oldMapInfo {enemyBalls = enemyBalls oldMapInfo}
+          newMapInfo = oldMapInfo {enemyBalls = newEnemyBalls}
             where
               oldMapInfo = mapInfo oldMetaInfo
       -- Destroy colliding enemy balls
-      newEnemyBalls =filter (not . wastedDurability) (map decreaseDurabilityOnCollidingEnemies (enemyBalls (mapInfo (metaInfo state))))
+      newEnemyBalls = filter (not . wastedDurability) (map decreaseDurabilityOnCollidingEnemies (enemyBalls (mapInfo (metaInfo state))))
 
       decreaseDurabilityOnCollidingEnemies enemy = case ballType enemy of
         Destructible durability ->
