@@ -29,6 +29,8 @@ executable gloss-template
     other-modules:
       MapEditor
       Types
+      Consts
+      MathUtils
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:    base >=4 , gloss, gloss-juicy, bytestring

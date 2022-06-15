@@ -10,6 +10,8 @@ import Data.Word
 import Data.ByteString (ByteString, pack)
 import Types(Position, Velocity, Restitution, Speed, Coords, PlayerBall(..), EnemyBallType(..), EnemyPeg(..), MetaInfo(..))
 import MapEditor
+import Consts
+import MathUtils
 
 
 -- | A data structure to hold the state of the game.
@@ -19,17 +21,6 @@ data GameState = Game
     metaInfo :: MetaInfo
   }
 
-width, height, offset :: Int
-width = 700
-height = 700
-offset = 100
-
-background :: Color
-background = black
-
--- | Number of frames to show per second.
-fps :: Int
-fps = 60
 
 window :: Display
 window = InWindow "Game" (width, height) (offset, offset)
@@ -95,17 +86,6 @@ render state =
       Just (PlayerBall playerPosition _ _ _ radius) -> uncurry translate playerPosition $ color ballColor $ circleSolid radius
     ballColor = dark red
 
-startPlayerRestitution :: Restitution
-startPlayerRestitution = 6
-
-startPlayerSpeed :: Speed
-startPlayerSpeed = 300
-
-startPlayerRadius :: Float
-startPlayerRadius = 10
-
-gravity :: Vector
-gravity = (0,-6)
 
 moveBall :: PlayerBall -> Float -> GameState -> GameState
 moveBall
@@ -283,14 +263,3 @@ handleKeys (EventKey (Char 's') Down _ _) state =
   initialState
 -- Do nothing for all other events.
 handleKeys _ game = game
-
-vectorSum :: [Vector] -> Vector
-vectorSum vectors = (sum (map getI vectors), sum (map getJ vectors))
-  where
-    getI :: Coords -> Float
-    getI (i, _) = i
-    getJ :: Coords -> Float
-    getJ (_, j) = j
-
-vectorDiff :: Vector -> Vector -> Vector
-vectorDiff vec1 vec2 = (fst vec1 - fst vec2, snd vec1 - snd vec2)
