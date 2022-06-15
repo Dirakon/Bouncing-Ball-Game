@@ -5,37 +5,9 @@ import Graphics.Gloss.Data.ViewPort
 import Graphics.Gloss.Interface.IO.Game
 import Graphics.Gloss.Data.Vector
 import Data.Maybe
+import Types
+import MapEditor
 import Data.Bool (bool)
-
-type Position = (Float, Float)
-type Velocity = (Float, Float)
-type Restitution = Float
-type Speed = Float
-type Coords = (Float, Float)
-
-data PlayerBall = PlayerBall Position Velocity Restitution Speed
-
-data EnemyBall = EnemyBall Position
-
-data MetaInfo = MetaInfo {
-  ballsLeft :: Int,
-  mousePosition :: Position,
-  cannonPosition :: Position,
-  leftWallX :: Float,
-  rightWallX :: Float,
-  floorY :: Float,
-  ceilingY :: Float
-}
-
--- | A data structure to hold the state of the game.
-data GameState
-  = Game
-  {
-    mainBall :: Maybe PlayerBall,
-    enemyBalls :: [EnemyBall],
-    metaInfo :: MetaInfo
-  }
-
 
 width, height, offset :: Int
 width = 700

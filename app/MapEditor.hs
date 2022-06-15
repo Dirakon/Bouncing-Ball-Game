@@ -1,2 +1,4 @@
-main :: IO ()
-main = play window background fps initialState render handleKeys update
+module MapEditor where
+
+tt :: IO ()
+tt = print "123"
