@@ -29,6 +29,6 @@ executable gloss-template
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
-    build-depends:    base >=4 , gloss, gloss-juicy
+    build-depends:    base >=4 , gloss, gloss-juicy, bytestring
     hs-source-dirs:   app
     default-language: Haskell2010
