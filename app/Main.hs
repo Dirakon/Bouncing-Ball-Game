@@ -8,16 +8,10 @@ import Graphics.Gloss.Data.ViewPort
 import Graphics.Gloss.Interface.IO.Game
 import Data.Word
 import Data.ByteString (ByteString, pack)
-import Types(Position, Velocity, Restitution, Speed, Coords, PlayerBall(..), EnemyBallType(..), EnemyPeg(..), MetaInfo(..))
-import MapEditor
+import Types(Position, Velocity, Restitution, Speed, Coords, PlayerBall(..), EnemyBallType(..), EnemyPeg(..), MetaInfo(..), GameState(..), MapInfo(..))
+import MapEditor hiding (MapEditorState(..))
 
 
--- | A data structure to hold the state of the game.
-data GameState = Game
-  { mainBall :: Maybe PlayerBall,
-    enemyBalls :: [EnemyPeg],
-    metaInfo :: MetaInfo
-  }
 
 width, height, offset :: Int
 width = 700
@@ -38,24 +32,27 @@ initialState :: GameState
 initialState =
   Game
     { mainBall = Nothing,
-      enemyBalls =
-        [ EnemyPeg (-150, -300) 10 (Destructible 1),
-          EnemyPeg (-100, 0) 5 (Destructible 1),
-          EnemyPeg (-50, -200) 20 (Destructible 1),
-          EnemyPeg (0, -200) 30 (Destructible 3),
-          EnemyPeg (50, 100) 10 (Destructible 1),
-          EnemyPeg (100, 200) 5 (Destructible 1),
-          EnemyPeg (150, 0) 2 (Destructible 1)
-        ],
       metaInfo =
         MetaInfo
           { ballsLeft = 300,
             mousePosition = (0, 0),
-            cannonPosition = (0, 300),
-            leftWallX = -300,
-            rightWallX = 300,
-            floorY = -300,
-            ceilingY = 300
+            mapInfo = MapInfo
+              {
+                enemyBalls =
+                [ EnemyPeg (-150, -300) 10 (Destructible 1),
+                  EnemyPeg (-100, 0) 5 (Destructible 1),
+                  EnemyPeg (-50, -200) 20 (Destructible 1),
+                  EnemyPeg (0, -200) 30 (Destructible 3),
+                  EnemyPeg (50, 100) 10 (Destructible 1),
+                  EnemyPeg (100, 200) 5 (Destructible 1),
+                  EnemyPeg (150, 0) 2 (Destructible 1)
+                ],
+                cannonPosition = (0, 300),
+                leftWallX = -300,
+                rightWallX = 300,
+                floorY = -300,
+                ceilingY = 300
+              } 
           }
     }
 
@@ -86,7 +83,7 @@ render ::
 render state =
   pictures [ball] <> pictures allEnemyBalls
   where
-    allEnemyBalls = map drawEnemyBall (enemyBalls state)
+    allEnemyBalls = map drawEnemyBall (enemyBalls (mapInfo (metaInfo state)))
       where
         drawEnemyBall :: EnemyPeg -> Picture
         drawEnemyBall (EnemyPeg enemyPosition radius _) = uncurry translate enemyPosition $ color ballColor $ circleSolid radius
@@ -112,17 +109,19 @@ moveBall
   playerBall@(PlayerBall playerPos playerVel playerRestitution speed playerRadius)
   seconds
   state =
-    state {mainBall = movedPlayerBall} {metaInfo = newMetaInfo} {enemyBalls = newEnemyBalls}
+    state {mainBall = movedPlayerBall} {metaInfo = newMetaInfo} 
     where
       -- Decrease balls lefts if ball dies this frame
       newMetaInfo = case movedPlayerBall of
-        Nothing -> oldMetaInfo {ballsLeft = ballsLeft oldMetaInfo - 1}
+        Nothing -> oldMetaInfo {ballsLeft = ballsLeft oldMetaInfo - 1} {mapInfo = newMapInfo}
         _ -> oldMetaInfo
         where
           oldMetaInfo = metaInfo state
-
+          newMapInfo = oldMapInfo {enemyBalls = enemyBalls oldMapInfo}
+            where
+              oldMapInfo = mapInfo oldMetaInfo
       -- Destroy colliding enemy balls
-      newEnemyBalls =filter (not . wastedDurability) (map decreaseDurabilityOnCollidingEnemies (enemyBalls state))
+      newEnemyBalls =filter (not . wastedDurability) (map decreaseDurabilityOnCollidingEnemies (enemyBalls (mapInfo (metaInfo state))))
 
       decreaseDurabilityOnCollidingEnemies enemy = case ballType enemy of
         Destructible durability ->
@@ -135,7 +134,7 @@ moveBall
         Destructible durability -> durability <= 0
         _ -> False
 
-      collidingEnemies = getCollidingBalls playerPos (enemyBalls state) playerRadius
+      collidingEnemies = getCollidingBalls playerPos (enemyBalls (mapInfo (metaInfo state))) playerRadius
 
       -- Move/bounce/destroy ball
       movedPlayerBall =
@@ -168,10 +167,10 @@ moveBall
 
           -- Wall collisions
           alive = not collidedWithFloor
-          collidedWithLeftWall = x <= leftWallX (metaInfo state)
-          collidedWithRightWall = x >= rightWallX (metaInfo state)
-          collidedWithFloor = y <= floorY (metaInfo state)
-          collidedWithCeiling = y >= ceilingY (metaInfo state)
+          collidedWithLeftWall = x <= leftWallX (mapInfo (metaInfo state))
+          collidedWithRightWall = x >= rightWallX (mapInfo (metaInfo state))
+          collidedWithFloor = y <= floorY (mapInfo (metaInfo state))
+          collidedWithCeiling = y >= ceilingY (mapInfo (metaInfo state))
 
           -- Collision with enemy balls
           velocityBouncedOnEnemies = playerVelocityOnEnemyCollision playerBall collidingEnemies
@@ -266,7 +265,7 @@ handleKeys (EventKey (MouseButton LeftButton) Down xPos yPos) state =
 
     hasAnyBallsLeft = ballsLeft (metaInfo state) > 0
     spawnedBall = PlayerBall cannonCoords ballVelocity startPlayerRestitution startPlayerSpeed startPlayerRadius
-    cannonCoords = cannonPosition (metaInfo state)
+    cannonCoords = cannonPosition (mapInfo (metaInfo state))
     mouseCoords = mousePosition (metaInfo state)
     ballVelocity = normalizeV ballDirection
     ballDirection = vectorDiff mouseCoords cannonCoords
@@ -276,6 +275,7 @@ handleKeys (EventMotion (xPos, yPos)) state =
   state {metaInfo = newMetaInfo}
   where
     oldMetaInfo = metaInfo state
+    oldMapInfo = mapInfo oldMetaInfo
     newMetaInfo = oldMetaInfo {mousePosition = (xPos, yPos)}
 
 -- For an 's' key pressed, reset the game state
