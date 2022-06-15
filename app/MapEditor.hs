@@ -59,12 +59,8 @@ handleKeys (EventKey (MouseButton WheelDown) _ _ _) state =
 -- Do nothing for all other events.
 handleKeys _ state = state
 
-
-initialMapEditorState :: MapEditorState
-initialMapEditorState = Game {
-    currentBall = Just (EnemyPeg (0, 0) 10 (Destructible 1)),
-    userMousePosition = (0, 0),
-    thisMapInfo = MapInfo
+emptyMap :: MapInfo
+emptyMap = MapInfo
     {
         enemyBalls =
         [],
@@ -74,6 +70,12 @@ initialMapEditorState = Game {
         floorY = -300,
         ceilingY = 300
     } 
+
+editorStateFromMap :: MapInfo-> MapEditorState
+editorStateFromMap map= Game {
+    currentBall = Just (EnemyPeg (0, 0) 10 (Destructible 1)),
+    userMousePosition = (0, 0),
+    thisMapInfo = map
 }
 
 render ::
@@ -114,7 +116,3 @@ moveCurBall
             Nothing -> Nothing
             Just oldCurBall -> Just oldCurBall {enemyPosition = newPosition}
         newPosition = userMousePosition state
-
-tt :: Display -> Int -> IO ()
-tt window fps = play window black fps initialMapEditorState render handleKeys update
-

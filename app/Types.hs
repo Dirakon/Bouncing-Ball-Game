@@ -1,4 +1,5 @@
 module Types(Position, Velocity, Restitution, Speed,Coords, PlayerBall(..), EnemyBallType(..), EnemyPeg(..), MetaInfo(..), GameState(..), MapInfo(..)) where
+import Data.Binary
 
 type Position = (Float, Float)
 
@@ -26,7 +27,7 @@ data GameState = Game
         metaInfo :: MetaInfo
     }
 
-data EnemyBallType = Destructible Int | Indestructible deriving (Eq)
+data EnemyBallType = Destructible Int | Indestructible deriving (Eq,Show,Read)
 
 data EnemyPeg = EnemyPeg
     { 
@@ -34,7 +35,7 @@ data EnemyPeg = EnemyPeg
         enemyRadius :: Float,
         ballType :: EnemyBallType
     }
-  deriving (Eq)
+  deriving (Eq,Show,Read)
 
 data MetaInfo = MetaInfo
     { 
@@ -53,4 +54,5 @@ data MapInfo = MapInfo
         rightWallX :: Float,
         floorY :: Float,
         ceilingY :: Float
-    }
+    } deriving (Show,Read)
+

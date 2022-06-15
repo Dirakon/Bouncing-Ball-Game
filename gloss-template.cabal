@@ -34,6 +34,6 @@ executable gloss-template
       Game
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
-    build-depends:    base >=4 , gloss, gloss-juicy, bytestring
+    build-depends:    base >=4 , gloss, gloss-juicy, bytestring, binary
     hs-source-dirs:   app
     default-language: Haskell2010
