@@ -1,5 +1,5 @@
 module Game where
-    
+
 
 import Data.Bool (bool)
 import Data.Maybe
@@ -35,8 +35,8 @@ initialStateFromMap mapInfo=
 update :: Float -> GameState -> GameState
 update seconds state = case mainBall state of
   Nothing -> state
-  Just player -> moveBall player seconds state
-  
+  Just player -> moveAndBounceBall player seconds state
+
 purple :: [Word8]
 purple = [128, 0, 128, 255]
 
@@ -53,7 +53,7 @@ render ::
   GameState -> -- The game state to render.
   Picture -- A picture of this game state.
 render state =
-  pictures [ball] <> pictures allEnemyBalls
+  ballTrajectory<>pictures [ball] <> pictures allEnemyBalls
   where
     allEnemyBalls = map drawEnemyBall (enemyBalls (mapInfo (metaInfo state)))
       where
@@ -62,15 +62,80 @@ render state =
     ball = case mainBall state of
       Nothing -> blank
       Just (PlayerBall playerPosition _ _ _ radius) -> uncurry translate playerPosition $ color ballColor $ circleSolid radius
+    ballTrajectory = case mainBall state of
+      Nothing -> color yellow (Line 
+          (
+          simulatedBallTrajectory 
+          mapData 
+          currentCannonPosition 
+          (normalizeV (vectorDiff mouseCoords currentCannonPosition) )
+          (startPlayerSpeed)
+          (1/(fromIntegral fps))
+          )
+        )
+      _ -> blank
+      where
+        mapData = mapInfo (metaInfo state)
+        mouseCoords = mousePosition (metaInfo state)
+        currentCannonPosition = cannonPosition(mapInfo (metaInfo state))
     ballColor = dark red
 
+simulatedBallTrajectory :: MapInfo-> Position -> Vector ->Float->Float-> [Point]
+simulatedBallTrajectory mapData startPosition@(x,y) dir@(dirX,dirY) startSpeed simulationDt=
+  if collidedWithAnything
+    then
+      []
+    else
+      newPoint : simulatedBallTrajectory mapData newPoint nextDir newSpeed simulationDt
+  where
+    collidedWithAnything = or [collidedWithCeiling,collidedWithFloor,collidedWithLeftWall,collidedWithRightWall, collidedWithEnemyBalls]
 
-moveBall :: PlayerBall -> Float -> GameState -> GameState
-moveBall
-  playerBall@(PlayerBall playerPos playerVel playerRestitution speed playerRadius)
+    collidedWithEnemyBalls = case listToMaybe enemyCollisions of
+      Nothing -> False
+      _ -> True
+
+    (CollisionInfo collidedWithCeiling collidedWithRightWall collidedWithFloor collidedWithLeftWall enemyCollisions) =
+      collisionData
+    (newPoint,nextDir,newSpeed,collisionData) = moveAndCollide startPosition simulationDt dir startSpeed 1 mapData
+
+data CollisionInfo = CollisionInfo{
+  collidedWithCeiling :: Bool,
+  collidedWithRightWall ::Bool,
+  collidedWithFloor ::Bool,
+  collidedWithLeftWall::Bool,
+  collidedEnemyBalls :: [EnemyPeg]
+}
+
+moveAndCollide :: Position -> Float -> Vector ->Float-> Float -> MapInfo -> (Vector,Vector,Float,CollisionInfo)
+moveAndCollide ballPosition@(x,y) dt dir@(dirX,dirY) startSpeed radius mapData = (newPoint,nextDir,newSpeed,collisionData)
+  where
+    collisionData = CollisionInfo{
+      collidedWithLeftWall = x <= leftWallX mapData,
+      collidedWithRightWall = x >= rightWallX mapData,
+      collidedWithFloor = y <= floorY mapData,
+      collidedWithCeiling = y >= ceilingY mapData,
+      collidedEnemyBalls = collidingEnemies
+    }
+
+    -- New directions
+    normalizedDir = normalizeV (dirX, dirY)
+    (movX,movY) = applyGravity (mulSV startSpeed normalizedDir)
+    nextDir =normalizeV (vectorSum[ gravity, (movX,movY) ])
+    applyGravity vec = vectorSum [vec, gravity]
+    newSpeed = magV (movX,movY)
+    -- New locations
+    x' = x + (dt*movX)
+    y' = y + (dt*movY)
+    newPoint = (x', y')
+
+    collidingEnemies = getCollidingBalls ballPosition (enemyBalls mapData) radius
+
+moveAndBounceBall :: PlayerBall -> Float -> GameState -> GameState
+moveAndBounceBall
+  playerBall@(PlayerBall playerPos playerDir playerRestitution speed playerRadius)
   seconds
   state =
-    state {mainBall = movedPlayerBall} {metaInfo = newMetaInfo} 
+    state {mainBall = movedPlayerBall} {metaInfo = newMetaInfo}
     where
       -- Decrease balls lefts if ball dies this frame
       newMetaInfo = case movedPlayerBall of
@@ -100,44 +165,40 @@ moveBall
       -- Move/bounce/destroy ball
       movedPlayerBall =
         if alive
-          then Just (PlayerBall newPos (mulSV seconds newVel) playerRestitution newSpeed playerRadius)
+          then Just (PlayerBall newPos nextDir playerRestitution newSpeed playerRadius)
           else Nothing
         where
           -- Old locations and velocities
           (x, y) = playerPos
-          (oldVx, oldVy) = playerVel
+          (oldDirX, oldDirY) = playerDir
 
-          -- New velocities
-          vx
+          -- New directions
+          dirX
             | collidedWithEnemyBall = fst velocityBouncedOnEnemies
-            | collidedWithLeftWall = abs oldVx
-            | collidedWithRightWall = -abs oldVx
-            | otherwise = oldVx
-          vy
+            | collidedWithLeftWall = abs oldDirX
+            | collidedWithRightWall = -abs oldDirX
+            | otherwise = oldDirX
+          dirY
             | collidedWithEnemyBall = snd velocityBouncedOnEnemies
-            | collidedWithCeiling = -abs oldVy
-            | otherwise = oldVy
-          newVel = vectorSum[ gravity,  mulSV speed (normalizeV (vx, vy))]
-          applyGravity vec = vectorSum [vec,mulSV seconds gravity]
-          newSpeed = magV newVel
+            | collidedWithCeiling = -abs oldDirY
+            | otherwise = oldDirY
 
-          -- New locations
-          x' = x + vx
-          y' = y + vy
-          newPos = (x', y')
+
+          (CollisionInfo collidedWithCeiling collidedWithRightWall collidedWithFloor collidedWithLeftWall _) =
+            collisionData
+          (newPos,nextDir,newSpeed,collisionData) = moveAndCollide playerPos seconds (dirX,dirY) speed 1 (mapInfo (metaInfo state))
 
           -- Wall collisions
           alive = not collidedWithFloor
-          collidedWithLeftWall = x <= leftWallX (mapInfo (metaInfo state))
-          collidedWithRightWall = x >= rightWallX (mapInfo (metaInfo state))
-          collidedWithFloor = y <= floorY (mapInfo (metaInfo state))
-          collidedWithCeiling = y >= ceilingY (mapInfo (metaInfo state))
 
           -- Collision with enemy balls
           velocityBouncedOnEnemies = playerVelocityOnEnemyCollision playerBall collidingEnemies
           collidedWithEnemyBall = case listToMaybe collidingEnemies of
             Nothing -> False
             _ -> True
+
+
+
 
 playerVelocityOnEnemyCollision :: PlayerBall -> [EnemyPeg] -> Vector
 playerVelocityOnEnemyCollision
@@ -217,7 +278,7 @@ getCollidingBalls
 -- | Respond to key events.
 handleKeys :: Event -> GameState -> GameState
 -- Spawn ball on mouse click (if has balls left and ball is not deployed yet)
-handleKeys (EventKey (MouseButton LeftButton) Down xPos yPos) state =
+handleKeys (EventKey (MouseButton LeftButton) Down _ (xPos,yPos)) state =
   state {mainBall = newMainBall}
   where
     newMainBall = case mainBall state of
@@ -227,7 +288,7 @@ handleKeys (EventKey (MouseButton LeftButton) Down xPos yPos) state =
     hasAnyBallsLeft = ballsLeft (metaInfo state) > 0
     spawnedBall = PlayerBall cannonCoords ballVelocity startPlayerRestitution startPlayerSpeed startPlayerRadius
     cannonCoords = cannonPosition (mapInfo (metaInfo state))
-    mouseCoords = mousePosition (metaInfo state)
+    mouseCoords = (xPos,yPos)
     ballVelocity = normalizeV ballDirection
     ballDirection = vectorDiff mouseCoords cannonCoords
 

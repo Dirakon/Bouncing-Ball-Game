@@ -62,9 +62,8 @@ handleKeys _ state = state
 emptyMap :: MapInfo
 emptyMap = MapInfo
     {
-        enemyBalls =
-        [],
-        cannonPosition = (0, 300),
+        enemyBalls = [],
+        cannonPosition = (0, 280),
         leftWallX = -300,
         rightWallX = 300,
         floorY = -300,
