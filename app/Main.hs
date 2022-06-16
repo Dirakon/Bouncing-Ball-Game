@@ -9,52 +9,33 @@ import qualified MapEditor
 import qualified Game
 import MapEditor (MapEditorState)
 import Graphics.Gloss.Interface.IO.Game
-import Foreign
 
 import Data.Binary
-
-import qualified Data.ByteString.Internal as S
-import qualified Data.ByteString          as S
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.Binary.Builder as B
-import Data.ByteString.Lazy as BS
-import Text.Read (readMaybe)
-
-toByteString   :: MapInfo -> ByteString
-toByteString = encode . show
-
-
-fromByteString :: ByteString -> MapInfo
-fromByteString bs = case readMaybe (decoded) of
-  Nothing -> MapEditor.emptyMap
-  Just a -> a
-  where
-    decoded = case decodeOrFail bs of
-      Left _ -> ""
-      Right (_,_,val) -> val
+import Data.ByteString.Lazy as ByteStringLazy
+import Data.Binary.Get (ByteOffset)
 
 
 window :: Display
 window = InWindow "Game" (width, height) (offset, offset)
 
 
-saveLevel :: String->MapInfo->IO ()
+saveLevel :: FilePath->MapInfo->IO ()
 saveLevel fileName map= do
-  BS.writeFile fileName (toByteString map)
+  ByteStringLazy.writeFile fileName (encode map)
 
-
-loadLevel:: String-> IO MapInfo
+loadLevel:: FilePath-> IO MapInfo
 loadLevel fileName= do
-    contents <- BS.readFile fileName
-    return ( fromByteString contents)
-
+  maybeDecodedMap <- (decodeFileOrFail fileName :: IO (Either (ByteOffset,String) MapInfo))
+  case maybeDecodedMap of
+      Left _ -> return MapEditor.emptyMap
+      Right decodedMap -> return decodedMap
 
 data FullGameState = GameOn (GameState,MapInfo) | EditorOn MapEditorState
+
 main :: IO ()
---main = play window background fps initialState render handleKeys update
 main = do
   level <- loadLevel "level1"
-  playIO  window black fps (initialFullState level)render handleKeys update
+  playIO  window black fps (initialFullState level) render handleKeys update
   where
     initialFullState level = EditorOn (MapEditor.editorStateFromMap level)
     render (EditorOn mapEditorState) = return $MapEditor.render mapEditorState

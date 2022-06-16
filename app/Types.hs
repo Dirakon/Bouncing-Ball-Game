@@ -1,5 +1,9 @@
+ {-# LANGUAGE DeriveGeneric #-}
+
 module Types(Position, Velocity, Restitution, Speed,Coords, PlayerBall(..), EnemyBallType(..), EnemyPeg(..), MetaInfo(..), GameState(..), MapInfo(..)) where
 import Data.Binary
+
+import GHC.Generics (Generic)
 
 type Position = (Float, Float)
 
@@ -27,7 +31,7 @@ data GameState = Game
         metaInfo :: MetaInfo
     }
 
-data EnemyBallType = Destructible Int | Indestructible deriving (Eq,Show,Read)
+data EnemyBallType = Destructible Int | Indestructible deriving (Eq,Show,Read,Generic)
 
 data EnemyPeg = EnemyPeg
     { 
@@ -35,7 +39,7 @@ data EnemyPeg = EnemyPeg
         enemyRadius :: Float,
         ballType :: EnemyBallType
     }
-  deriving (Eq,Show,Read)
+  deriving (Eq,Show,Read,Generic)
 
 data MetaInfo = MetaInfo
     { 
@@ -54,5 +58,10 @@ data MapInfo = MapInfo
         rightWallX :: Float,
         floorY :: Float,
         ceilingY :: Float
-    } deriving (Show,Read)
+    } deriving (Show,Read,Generic)
 
+instance Binary MapInfo
+
+instance Binary EnemyPeg
+
+instance Binary EnemyBallType
