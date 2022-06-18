@@ -1,20 +1,22 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
 module Main (main) where
-import Types
-import Graphics.Gloss
+
 import Consts
-import qualified MapEditor
-import qualified Game
-import MapEditor (MapEditorState)
-import Graphics.Gloss.Interface.IO.Game
-
+import Control.Monad (unless)
 import Data.Binary
-import Data.ByteString.Lazy as ByteStringLazy
 import Data.Binary.Get (ByteOffset)
-import Graphics.Gloss.Juicy (loadJuicyPNG)
+import Data.ByteString.Lazy as ByteStringLazy
 import Data.Maybe
-
+import qualified Game
+import Graphics.Gloss
+import Graphics.Gloss.Interface.IO.Game
+import Graphics.Gloss.Juicy (loadJuicyPNG)
+import MapEditor (MapEditorState)
+import qualified MapEditor
+import System.Directory (doesFileExist)
+import Types
 
 window :: Display
 window = InWindow "Game" (width, height) (offset, offset)
@@ -22,49 +24,78 @@ window = InWindow "Game" (width, height) (offset, offset)
 loadSprites :: IO Sprites
 loadSprites = do
   cannonSprite <- loadJuicyPNG "sprites/cannon.png"
-  return (Sprites 
-      {
-        cannonSprite  = tryUse cannonSprite  
-      }
+  return
+    ( Sprites
+        { cannonSprite = tryUse cannonSprite
+        }
     )
-    where
-      tryUse picture = fromMaybe blank picture
+  where
+    tryUse picture = fromMaybe blank picture
 
-
-saveLevel :: FilePath->MapInfo->IO ()
-saveLevel fileName map= do
+saveLevel :: FilePath -> MapInfo -> IO ()
+saveLevel fileName map = do
   ByteStringLazy.writeFile fileName (encode map)
 
-loadLevel:: FilePath-> IO MapInfo
-loadLevel fileName= do
-  maybeDecodedMap <- (decodeFileOrFail fileName :: IO (Either (ByteOffset,String) MapInfo))
+loadLevel :: FilePath -> IO MapInfo
+loadLevel fileName = do
+  levelFileExists <- doesFileExist fileName
+  unless levelFileExists $
+    ByteStringLazy.writeFile fileName (encode MapEditor.emptyMap)
+  maybeDecodedMap <- (decodeFileOrFail fileName :: IO (Either (ByteOffset, String) MapInfo))
   case maybeDecodedMap of
-      Left _ -> return MapEditor.emptyMap
-      Right decodedMap -> return decodedMap
+    Left _ -> return MapEditor.emptyMap
+    Right decodedMap -> return decodedMap
 
-data FullGameState = GameOn (GameState,MapInfo) | EditorOn MapEditorState
+data FullGameState = GameOn (GameState, MapInfo, Int) | EditorOn (MapEditorState, Int)
 
 main :: IO ()
 main = do
-  level <- loadLevel "level1"
+  level <- loadLevel (getLevelPath 0)
   sprites <- loadSprites
-  playIO  window black fps (initialFullState level sprites) render handleKeys update
+  let initialFullState = GameOn (Game.initialStateFrom level sprites,level, 0)
+  playIO window black fps initialFullState render handleKeys update
   where
-    initialFullState level sprites = EditorOn (MapEditor.editorStateFrom level sprites)
-    render (EditorOn mapEditorState) = return $MapEditor.render mapEditorState
-    render (GameOn (gameState,map)) = return $Game.render gameState
-
-    update dt (EditorOn mapEditorState) = return $EditorOn (MapEditor.update dt mapEditorState)
-    update dt (GameOn (gameState,map)) = return $GameOn( Game.update dt gameState,map)
-
-    handleKeys (EventKey (SpecialKey KeySpace) Down _ _) (GameOn (gameState,map)) = do
-      return $ EditorOn (MapEditor.editorStateFrom map (sprites gameState))
-    handleKeys (EventKey (SpecialKey KeySpace) Down _ _) (EditorOn editorState) = do
-      saveLevel "level1" map
-      return $GameOn (Game.initialStateFrom map sprites,map)
+    -- Go to play or editor mode on 'space' pressed
+    handleKeys (EventKey (SpecialKey KeySpace) Down _ _) (GameOn (gameState, map, currentLevel)) = do
+      return $ EditorOn (MapEditor.editorStateFrom map (sprites gameState), currentLevel)
+    handleKeys (EventKey (SpecialKey KeySpace) Down _ _) (EditorOn (editorState, currentLevel)) = do
+      saveLevel (getLevelPath currentLevel) map
+      return $ GameOn (Game.initialStateFrom map sprites, map, currentLevel)
       where
-        map =  MapEditor.thisMapInfo editorState
+        map = MapEditor.thisMapInfo editorState
         sprites = MapEditor.thisSprites editorState
 
-    handleKeys event (GameOn (gameState,map)) = return $GameOn (Game.handleKeys event gameState,map)
-    handleKeys event (EditorOn editorState) = return $EditorOn(MapEditor.handleKeys event editorState)
+    -- Go to next level in play mode on 'enter' being pressed with no balls on the map
+    handleKeys (EventKey (SpecialKey KeyEnter) Down _ _) oldState@(GameOn (gameState, map, currentLevel)) = do
+      if noEnemyBallsLeft
+        then do
+          nextLevel <- loadLevel (getLevelPath (currentLevel + 1))
+          return (newState nextLevel gameState)
+        else do
+          return oldState
+      where
+        newState nextLevel gameState =
+          GameOn (Game.initialStateFrom nextLevel (sprites gameState), nextLevel, currentLevel + 1)
+
+        noEnemyBallsLeft = case listToMaybe (enemyBalls (mapInfo (metaInfo gameState))) of
+          Nothing -> True
+          _ -> False
+
+    -- Choose handleKeys function depending on current mode
+    handleKeys event (GameOn (gameState, map, currentLevel)) =
+      return $ GameOn (Game.handleKeys event gameState, map, currentLevel)
+    handleKeys event (EditorOn (editorState, currentLevel)) =
+      return $ EditorOn (MapEditor.handleKeys event editorState, currentLevel)
+
+    -- Choose render function depending on current mode
+    render (EditorOn (mapEditorState, _)) = return $ MapEditor.render mapEditorState
+    render (GameOn (gameState, map, _)) = return $ Game.render gameState
+
+    -- Choose update function depending on current mode
+    update dt (EditorOn (mapEditorState, currentLevel)) =
+      return $ EditorOn (MapEditor.update dt mapEditorState, currentLevel)
+    update dt (GameOn (gameState, map, currentLevel)) =
+      return $ GameOn (Game.update dt gameState, map, currentLevel)
+
+getLevelPath :: Int -> FilePath
+getLevelPath levelIndex = "levels/level" ++ show levelIndex

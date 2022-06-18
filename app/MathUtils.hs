@@ -1,8 +1,7 @@
-module MathUtils(vectorSum,vectorDiff) where
+module MathUtils (vectorSum, vectorDiff) where
+
 import Graphics.Gloss
 import Types
-
-
 
 vectorSum :: [Vector] -> Vector
 vectorSum vectors = (sum (map getI vectors), sum (map getJ vectors))
@@ -14,4 +13,3 @@ vectorSum vectors = (sum (map getI vectors), sum (map getJ vectors))
 
 vectorDiff :: Vector -> Vector -> Vector
 vectorDiff vec1 vec2 = (fst vec1 - fst vec2, snd vec1 - snd vec2)
-

@@ -8,18 +8,18 @@ import Data.Word
 import Graphics.Gloss
 import Graphics.Gloss.Data.Vector
 import Graphics.Gloss.Data.ViewPort
+import Graphics.Gloss.Geometry.Angle (radToDeg)
 import Graphics.Gloss.Interface.IO.Game
 import MathUtils
-import Types (Coords, EnemyBallType (..), EnemyPeg (..), GameState (..), MapInfo (..), MetaInfo (..), PlayerBall (..), Position, Restitution, Speed, Velocity, Sprites (cannonSprite))
-import Graphics.Gloss.Geometry.Angle (radToDeg)
+import Types (Coords, EnemyBallType (..), EnemyPeg (..), GameState (..), MapInfo (..), MetaInfo (..), PlayerBall (..), Position, Restitution, Speed, Sprites (cannonSprite), Velocity)
 
-initialStateFrom :: MapInfo ->Sprites-> GameState
+initialStateFrom :: MapInfo -> Sprites -> GameState
 initialStateFrom mapInfo sprites =
   Game
     { mainBall = Nothing,
       metaInfo =
         MetaInfo
-          { ballsLeft = 300,
+          { ballsLeft = 6,
             mousePosition = (0, 0),
             mapInfo = mapInfo
           },
@@ -32,42 +32,41 @@ update seconds state = case mainBall state of
   Nothing -> state
   Just player -> moveAndBounceBall player seconds state
 
-purple :: [Word8]
-purple = [128, 0, 128, 255]
-
-whiter :: [Word8]
-whiter = [255, 255, 255, 255]
-
-bitmapData :: ByteString
-bitmapData = pack $ take (300 * 300 * 4) (cycle (purple ++ purple ++ purple ++ purple ++ purple ++ purple ++ purple ++ whiter))
-
---ourPicture :: Picture
---ourPicture = bitmapOfByteString 300 300 (BitmapFormat TopToBottom PxRGBA) bitmapData True
-
 -- | Convert a game state into a picture.
 render ::
   GameState -> -- The game state to render.
   Picture -- A picture of this game state.
 render state =
-  ballTrajectory<> pictures [ball] <> pictures allEnemyBalls<> cannonPicture 
+  ballTrajectory <> ball <> pictures allEnemyBalls <> cannonPicture <> textPicture
   where
-  
-    cannonPicture =translate cannonX cannonY (rotate cannonRotation (cannonSprite (sprites state)))
-    (cannonX,cannonY) = cannonPosition mapData
-    cannonRotation =
-        sign * radToDeg ( angleVV (1,0) directionFromCannonToMouse) - 90
-        where
-          sign = if snd directionFromCannonToMouse > 0 then (-1) else 1
+    -- Text rendering
+    textPicture = translate (- fromIntegral width / 2) (- fromIntegral height / 2 + 30) (scale 0.2 0.2 (color green (text textToPrint)))
+    textToPrint
+      | noEnemyBallsLeft = "You won! Press enter to visit the next level."
+      | lives > 0 = "Balls left: " ++ show lives ++ " (press space to edit the level)"
+      | otherwise = "You lost... Press 's' to restart..."
 
+    -- Cannon rendering
+    cannonPicture = translate cannonX cannonY (rotate cannonRotation (cannonSprite (sprites state)))
+    (cannonX, cannonY) = cannonPosition mapData
+    cannonRotation =
+      sign * radToDeg (angleVV (1, 0) directionFromCannonToMouse) - 90
+      where
+        sign = if snd directionFromCannonToMouse > 0 then (-1) else 1
+
+    -- Enemy balls rendering
     allEnemyBalls = map drawEnemyBall (enemyBalls mapData)
       where
         drawEnemyBall :: EnemyPeg -> Picture
-        drawEnemyBall (EnemyPeg (x,y) radius _) = translate x y $ color ballColor $ circleSolid radius
+        drawEnemyBall (EnemyPeg (x, y) radius _) = translate x y $ color ballColor $ circleSolid radius
+
+    -- Player rendering
     ball = case mainBall state of
       Nothing -> blank
-      Just (PlayerBall (x,y) _ _ _ radius) -> translate x y $ color ballColor $ circleSolid radius
+      Just (PlayerBall (x, y) _ _ _ radius) -> translate x y $ color ballColor $ circleSolid radius
+    ballColor = dark red
 
-
+    -- Ball trajectory rendering
     ballTrajectory = case mainBall state of
       Nothing ->
         color
@@ -82,9 +81,11 @@ render state =
               )
           )
       _ -> blank
-    ballColor = dark red
 
-
+    lives = ballsLeft (metaInfo state)
+    noEnemyBallsLeft = case listToMaybe (enemyBalls (mapInfo (metaInfo state))) of
+      Nothing -> True
+      _ -> False
     mapData = mapInfo (metaInfo state)
     mouseCoords = mousePosition (metaInfo state)
     currentCannonPosition = cannonPosition mapData
@@ -119,8 +120,7 @@ moveAndCollide ballPosition@(x, y) dt dir startSpeed radius mapData = (newPoint,
   where
     collisionData =
       CollisionInfo
-        {
-          collidedWithCeiling = y >= ceilingY mapData,
+        { collidedWithCeiling = y >= ceilingY mapData,
           collidedWithRightWall = x >= rightWallX mapData,
           collidedWithFloor = y <= floorY mapData,
           collidedWithLeftWall = x <= leftWallX mapData,
@@ -186,11 +186,11 @@ moveAndBounceBall
           dirX
             | collidedWithEnemyBall = fst velocityBouncedOnEnemies
             | collidedWithLeftWall = abs oldDirX
-            | collidedWithRightWall = -abs oldDirX
+            | collidedWithRightWall = - abs oldDirX
             | otherwise = oldDirX
           dirY
             | collidedWithEnemyBall = snd velocityBouncedOnEnemies
-            | collidedWithCeiling = -abs oldDirY
+            | collidedWithCeiling = - abs oldDirY
             | otherwise = oldDirY
 
           (CollisionInfo collidedWithCeiling collidedWithRightWall collidedWithFloor collidedWithLeftWall _) =
@@ -252,7 +252,7 @@ playerVelocityOnEnemyCollision
         (x_collision, y_collision)
         (x_vec_abs, y_vec_abs) =
           if x_vec_abs * b == y_vec_abs * a
-            then (-x_vec_abs - 0.01, -y_vec_abs - 0.02)
+            then (- x_vec_abs - 0.01, - y_vec_abs - 0.02)
             else resultVector
           where
             c = x_center -- center of static circle, x axis
