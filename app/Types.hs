@@ -1,9 +1,10 @@
  {-# LANGUAGE DeriveGeneric #-}
 
-module Types(Position, Velocity, Restitution, Speed,Coords, PlayerBall(..), EnemyBallType(..), EnemyPeg(..), MetaInfo(..), GameState(..), MapInfo(..)) where
+module Types(Position, Velocity, Restitution, Speed,Coords, PlayerBall(..), EnemyBallType(..), EnemyPeg(..), MetaInfo(..), GameState(..), MapInfo(..), Sprites(..)) where
 import Data.Binary
 
 import GHC.Generics (Generic)
+import Graphics.Gloss (Picture)
 
 type Position = (Float, Float)
 
@@ -27,6 +28,7 @@ data PlayerBall = PlayerBall
 -- | A data structure to hold the state of the game.
 data GameState = Game
     { 
+        sprites :: Sprites,
         mainBall :: Maybe PlayerBall,
         metaInfo :: MetaInfo
     }
@@ -49,6 +51,10 @@ data MetaInfo = MetaInfo
     }
 
 
+data Sprites = Sprites
+    {
+        cannonSprite :: Picture
+    }
 
 data MapInfo = MapInfo
     {

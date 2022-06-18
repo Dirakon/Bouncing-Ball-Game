@@ -14,3 +14,4 @@ vectorSum vectors = (sum (map getI vectors), sum (map getJ vectors))
 
 vectorDiff :: Vector -> Vector -> Vector
 vectorDiff vec1 vec2 = (fst vec1 - fst vec2, snd vec1 - snd vec2)
+

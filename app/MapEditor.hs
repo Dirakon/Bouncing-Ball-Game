@@ -3,13 +3,14 @@ import Graphics.Gloss
 import Graphics.Gloss.Data.Vector
 import Graphics.Gloss.Data.ViewPort
 import Graphics.Gloss.Interface.IO.Game
-import Types(Position, Coords, EnemyBallType(..), EnemyPeg(..), MapInfo(..))
+import Types(Position, Coords, EnemyBallType(..), EnemyPeg(..), MapInfo(..), Sprites)
 -- | A data structure to hold the state of the map.
 data MapEditorState = Game
     { 
         currentBall :: Maybe EnemyPeg,
         thisMapInfo :: MapInfo,
-        userMousePosition :: Position
+        userMousePosition :: Position,
+        thisSprites :: Sprites
     }
 
 changeRadius :: Maybe EnemyPeg -> Float -> Maybe EnemyPeg
@@ -70,11 +71,12 @@ emptyMap = MapInfo
         ceilingY = 300
     } 
 
-editorStateFromMap :: MapInfo-> MapEditorState
-editorStateFromMap map= Game {
+editorStateFrom :: MapInfo->Sprites-> MapEditorState
+editorStateFrom map sprites= Game {
     currentBall = Just (EnemyPeg (0, 0) 10 (Destructible 1)),
     userMousePosition = (0, 0),
-    thisMapInfo = map
+    thisMapInfo = map,
+    thisSprites = sprites
 }
 
 render ::
