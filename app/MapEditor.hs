@@ -5,7 +5,7 @@ import Graphics.Gloss.Data.Vector
 import Graphics.Gloss.Data.ViewPort
 import Graphics.Gloss.Interface.IO.Game
 import Types (Coords, EnemyBallType (..), EnemyPeg (..), MapInfo (..), Position, Sprites)
-import Consts (width, height)
+import Consts (width, height, wallColor)
 
 -- | A data structure to hold the state of the map editor.
 data MapEditorState = Game
@@ -25,11 +25,21 @@ changeRadius peg delta = case peg of
       currentRadius = enemyRadius ball
       newRadius = currentRadius + delta
 
+inBoundaries :: Coords -> Float -> Bool
+inBoundaries cords radius = condition
+  where
+    condition = x + radius / 2 < rightWallX emptyMap && x - radius / 2 > leftWallX emptyMap &&
+      y + radius / 2 < ceilingY emptyMap && y - radius / 2 > floorY emptyMap
+      where
+        (x, y) = cords
+
+
 -- Update mouse position
 handleKeys (EventMotion (xPos, yPos)) state =
   state {userMousePosition = newUserMousePosition}
   where
     newUserMousePosition = (xPos, yPos)
+
 handleKeys (EventKey (MouseButton RightButton) Down _ _) state =
   state
     { mapInfo = newMapInfo
@@ -37,10 +47,27 @@ handleKeys (EventKey (MouseButton RightButton) Down _ _) state =
   where
     newMapInfo = oldMapInfo {enemyBalls = newEnemyBalls}
     oldMapInfo = mapInfo state
-    newEnemyBalls = enemyBalls oldMapInfo ++ [EnemyPeg (userMousePosition state) currentRadius (Destructible 1)]
-    currentRadius = case currentBall state of
-      Nothing -> 10
-      Just ball -> enemyRadius ball
+    newEnemyBalls = enemyBalls oldMapInfo ++
+      [EnemyPeg (userMousePosition state) currentRadius (Destructible 1) |
+        inBoundaries (userMousePosition state) currentRadius]
+    currentRadius = maybe 10 enemyRadius (currentBall state)
+
+handleKeys (EventKey (MouseButton LeftButton) Down _ _) state =
+  state
+    { mapInfo = newMapInfo
+    }
+  where
+    newMapInfo = oldMapInfo {enemyBalls = newEnemyBalls}
+    oldMapInfo = mapInfo state
+    newEnemyBalls = filter (not . checkColission) (enemyBalls oldMapInfo)
+      where
+        checkColission x = sqrt ((enemyX - mouseX) ^ 2 + (enemyY - mouseY) ^ 2) <= sumRadius
+          where
+            (enemyX, enemyY) = enemyPosition x
+            sumRadius = enemyRadius x + currentRadius
+            currentRadius = maybe 10 enemyRadius (currentBall state)
+        (mouseX, mouseY) = userMousePosition state
+
 handleKeys (EventKey (MouseButton WheelUp) _ _ _) state =
   state
     { currentBall = newCurrentBall
@@ -84,11 +111,29 @@ render ::
   MapEditorState -> -- The map state to render.
   Picture
 render state =
-  ball <> pictures allEnemyBalls <> textPicture
+  ball <> pictures allEnemyBalls <> textPicture <> wallsPicture
   where
     -- Text rendering
     textPicture = translate (- fromIntegral width / 2) (- fromIntegral height / 2 + 30) (scale 0.2 0.2 (color green (text textToPrint)))
     textToPrint = "Press space to play the level"
+
+    wallsPicture = leftWall <> rightWall <> ceiling
+      where
+        leftWall = translate (curLeftX - wallWidth) (curFloorY + wallHeight / 2) $
+          color wallColor $ rectangleSolid wallWidth wallHeight
+        rightWall = translate (curRightX + wallWidth) (curFloorY + wallHeight / 2) $
+          color wallColor $ rectangleSolid wallWidth wallHeight
+        ceiling = translate 0 (curCeilingY + ceilWidth) $
+          color wallColor $ rectangleSolid ceilLength ceilWidth
+        curLeftX = leftWallX currentMapInfo
+        curRightX = rightWallX currentMapInfo
+        curFloorY = floorY currentMapInfo
+        curCeilingY = ceilingY currentMapInfo
+        currentMapInfo = mapInfo state
+        wallWidth = 30
+        ceilWidth = 30
+        wallHeight = curCeilingY - curFloorY + ceilWidth
+        ceilLength = curRightX - curLeftX + 3 * wallWidth
 
     allEnemyBalls = map drawEnemyBall (enemyBalls (mapInfo state))
       where
@@ -97,7 +142,7 @@ render state =
     ball = case currentBall state of
       Nothing -> blank
       Just (EnemyPeg enemyPosition enemyRadius _) -> uncurry translate enemyPosition $ color red $ circleSolid enemyRadius
-
+    
 -- | Update the game by moving the ball and bouncing off walls.
 update ::
   Float ->
@@ -105,7 +150,13 @@ update ::
   MapEditorState
 update seconds state = case currentBall state of
   Nothing -> state
-  Just curBall -> moveCurBall curBall seconds state
+  Just curBall -> 
+    if
+      inBoundaries (userMousePosition state) (enemyRadius curBall)
+    then
+      moveCurBall curBall seconds state
+    else
+      state
 
 moveCurBall ::
   EnemyPeg ->

@@ -47,7 +47,7 @@ render ::
   GameState -> -- The game state to render.
   Picture -- A picture of this game state.
 render state =
-  ballTrajectory <> ball <> pictures allEnemyBalls <> cannonPicture <> textPicture
+  ballTrajectory <> ball <> pictures allEnemyBalls <> cannonPicture <> textPicture <> wallsPicture
   where
     -- Text rendering
     textPicture = translate (- fromIntegral width / 2) (- fromIntegral height / 2 + 30) (scale 0.2 0.2 (color green (text textToPrint)))
@@ -64,17 +64,39 @@ render state =
       where
         sign = if snd directionFromCannonToMouse > 0 then (-1) else 1
 
+    wallsPicture = leftWall <> rightWall <> ceiling
+      where
+        leftWall = translate (curLeftX - wallWidth) (curFloorY + wallHeight / 2) $
+          color wallColor $ rectangleSolid wallWidth wallHeight
+        rightWall = translate (curRightX + wallWidth) (curFloorY + wallHeight / 2) $
+          color wallColor $ rectangleSolid wallWidth wallHeight
+        ceiling = translate 0 (curCeilingY + ceilWidth) $
+          color wallColor $ rectangleSolid ceilLength ceilWidth
+        curLeftX = leftWallX currentMapInfo
+        curRightX = rightWallX currentMapInfo
+        curFloorY = floorY currentMapInfo
+        curCeilingY = ceilingY currentMapInfo
+        currentMapInfo = mapInfo state
+        wallWidth = 30
+        ceilWidth = 30
+        wallHeight = curCeilingY - curFloorY + ceilWidth
+        ceilLength = curRightX - curLeftX + 3 * wallWidth
+
     -- Enemy balls rendering
     allEnemyBalls = map drawEnemyBall (enemyBalls mapData)
       where
         drawEnemyBall :: EnemyPeg -> Picture
-        drawEnemyBall (EnemyPeg (x, y) radius _) = translate x y $ color ballColor $ circleSolid radius
+        drawEnemyBall (EnemyPeg (x, y) radius _) = translate x y $ color enemyColor $ circleSolid radius
 
     -- Player rendering
     ball = case mainBall state of
       Nothing -> blank
       Just (PlayerBall (x, y) _ _ _ radius) -> translate x y $ color ballColor $ circleSolid radius
-    ballColor = dark red
+    ballColor = dark white
+    
+    -- | Enemy color
+    enemyColor = dark red
+
 
     -- Ball trajectory rendering
     ballTrajectory = if playerBallIsDeployed
