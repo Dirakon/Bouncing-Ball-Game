@@ -1,4 +1,4 @@
-module Consts (width, height, offset, fps, background, startPlayerRadius, startPlayerSpeed, startPlayerRestitution, gravity) where
+module Consts (width, height, offset, fps, background, startPlayerRadius, startPlayerSpeed, startPlayerRestitution, gravity, wallColor) where
 
 import Graphics.Gloss
 import Types
@@ -15,6 +15,9 @@ background = black
 -- | Number of frames to show per second.
 fps :: Int
 fps = 60
+
+-- | Walls color
+wallColor = dark green
 
 -- | Initial player ball simulation settings | --
 startPlayerRestitution :: Restitution
