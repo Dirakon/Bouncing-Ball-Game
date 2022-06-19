@@ -50,7 +50,7 @@ render state =
   ballTrajectory <> ball <> pictures allEnemyBalls <> cannonPicture <> textPicture <> wallsPicture
   where
     -- Text rendering
-    textPicture = translate (- fromIntegral width / 2) (- fromIntegral height / 2 + 30) (scale 0.2 0.2 (color green (text textToPrint)))
+    textPicture = translate (- fromIntegral width / 2 + 40)  (- fromIntegral height / 2 + 20) (scale 0.2 0.2 (color green (text textToPrint)))
     textToPrint
       | noEnemyBallsLeft = "You won! Press enter to visit the next level."
       | lives > 0 = "Balls left: " ++ show lives ++ " (press space to edit the level)"

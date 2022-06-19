@@ -114,7 +114,7 @@ render state =
   ball <> pictures allEnemyBalls <> textPicture <> wallsPicture
   where
     -- Text rendering
-    textPicture = translate (- fromIntegral width / 2) (- fromIntegral height / 2 + 30) (scale 0.2 0.2 (color green (text textToPrint)))
+    textPicture = translate (- fromIntegral width / 2 + 40)  (- fromIntegral height / 2 + 20) (scale 0.2 0.2 (color green (text textToPrint)))
     textToPrint = "Press space to play the level"
 
     wallsPicture = leftWall <> rightWall <> ceiling
