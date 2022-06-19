@@ -47,27 +47,27 @@ loadLevel fileName = do
     Left _ -> return MapEditor.emptyMap
     Right decodedMap -> return decodedMap
 
-data FullGameState = GameOn (Game.GameState, MapInfo, Int) | EditorOn (MapEditorState, Int)
+data FullGameState = GameOn (Game.GameState, Int) | EditorOn (MapEditorState, Int)
 
 main :: IO ()
 main = do
   level <- loadLevel (getLevelPath 0)
   sprites <- loadSprites
-  let initialFullState = GameOn (Game.initialStateFrom level sprites,level, 0)
+  let initialFullState = GameOn (Game.initialStateFrom level sprites, 0)
   playIO window black fps initialFullState render handleKeys update
   where
     -- Change mode on 'space' pressed
-    handleKeys (EventKey (SpecialKey KeySpace) Down _ _) (GameOn (gameState, map, currentLevel)) = do
-      return $ EditorOn (MapEditor.editorStateFrom map (Game.sprites gameState), currentLevel)
+    handleKeys (EventKey (SpecialKey KeySpace) Down _ _) (GameOn (gameState, currentLevel)) = do
+      return $ EditorOn (MapEditor.editorStateFrom (Game.initialMap gameState) (Game.sprites gameState), currentLevel)
     handleKeys (EventKey (SpecialKey KeySpace) Down _ _) (EditorOn (editorState, currentLevel)) = do
       saveLevel (getLevelPath currentLevel) map
-      return $ GameOn (Game.initialStateFrom map sprites, map, currentLevel)
+      return $ GameOn (Game.initialStateFrom map sprites, currentLevel)
       where
         map = MapEditor.mapInfo editorState
         sprites = MapEditor.sprites editorState
 
     -- Go to next level in play mode on 'enter' being pressed with no balls on the map
-    handleKeys (EventKey (SpecialKey KeyEnter) Down _ _) oldState@(GameOn (gameState, map, currentLevel)) = do
+    handleKeys (EventKey (SpecialKey KeyEnter) Down _ _) oldState@(GameOn (gameState, currentLevel)) = do
       if noEnemyBallsLeft
         then do
           nextLevel <- loadLevel (getLevelPath (currentLevel + 1))
@@ -76,27 +76,27 @@ main = do
           return oldState
       where
         newState nextLevel gameState =
-          GameOn (Game.initialStateFrom nextLevel (Game.sprites gameState), nextLevel, currentLevel + 1)
+          GameOn (Game.initialStateFrom nextLevel (Game.sprites gameState), currentLevel + 1)
 
         noEnemyBallsLeft = case listToMaybe (enemyBalls (Game.mapInfo gameState)) of
           Nothing -> True
           _ -> False
 
     -- Choose handleKeys function depending on current mode
-    handleKeys event (GameOn (gameState, map, currentLevel)) =
-      return $ GameOn (Game.handleKeys event gameState, map, currentLevel)
+    handleKeys event (GameOn (gameState, currentLevel)) =
+      return $ GameOn (Game.handleKeys event gameState, currentLevel)
     handleKeys event (EditorOn (editorState, currentLevel)) =
       return $ EditorOn (MapEditor.handleKeys event editorState, currentLevel)
 
     -- Choose render function depending on current mode
     render (EditorOn (mapEditorState, _)) = return $ MapEditor.render mapEditorState
-    render (GameOn (gameState, map, _)) = return $ Game.render gameState
+    render (GameOn (gameState, _)) = return $ Game.render gameState
 
     -- Choose update function depending on current mode
     update dt (EditorOn (mapEditorState, currentLevel)) =
       return $ EditorOn (MapEditor.update dt mapEditorState, currentLevel)
-    update dt (GameOn (gameState, map, currentLevel)) =
-      return $ GameOn (Game.update dt gameState, map, currentLevel)
+    update dt (GameOn (gameState, currentLevel)) =
+      return $ GameOn (Game.update dt gameState, currentLevel)
 
 getLevelPath :: Int -> FilePath
 getLevelPath levelIndex = "levels/level" ++ show levelIndex

@@ -20,7 +20,8 @@ data GameState = Game
     mainBall :: Maybe PlayerBall,
     ballsLeft :: Int,
     userMousePosition :: Position,
-    mapInfo :: MapInfo
+    mapInfo :: MapInfo,
+    initialMap :: MapInfo
   }
 
 -- Generate initial game state depending on the map and sprites
@@ -31,6 +32,7 @@ initialStateFrom mapInfo sprites =
       ballsLeft = 6,
       userMousePosition = (0, 0),
       mapInfo = mapInfo,
+      initialMap = mapInfo,
       sprites = sprites
     }
 
@@ -291,6 +293,11 @@ getCollidingBalls
 
 -- | Respond to key events.
 handleKeys :: Event -> GameState -> GameState
+
+
+-- Restart game on 's' entered
+handleKeys (EventKey (Char 's') Down _ _) state =
+  initialStateFrom (initialMap state) (sprites state)
 
 -- Spawn ball on mouse click (if has balls left and ball is not deployed yet)
 handleKeys (EventKey (MouseButton LeftButton) Down _ (xPos, yPos)) state =
