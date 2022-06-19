@@ -7,37 +7,37 @@ import Graphics.Gloss.Interface.IO.Game
 import Types (Coords, EnemyBallType (..), EnemyPeg (..), MapInfo (..), Position, Sprites)
 import Consts (width, height)
 
--- | A data structure to hold the state of the map.
+-- | A data structure to hold the state of the map editor.
 data MapEditorState = Game
   { currentBall :: Maybe EnemyPeg,
-    thisMapInfo :: MapInfo,
+    mapInfo :: MapInfo,
     userMousePosition :: Position,
-    thisSprites :: Sprites
+    sprites :: Sprites
   }
 
 changeRadius :: Maybe EnemyPeg -> Float -> Maybe EnemyPeg
 changeRadius peg delta = case peg of
   Nothing -> Nothing
-  Just ball -> case newRadius > 0 of
-    True -> Just (ball {enemyRadius = currentRadius + delta})
-    False -> Just (ball {enemyRadius = currentRadius})
+  Just ball -> if newRadius > 0
+    then Just (ball {enemyRadius = currentRadius + delta})
+    else Just (ball {enemyRadius = currentRadius})
     where
       currentRadius = enemyRadius ball
       newRadius = currentRadius + delta
 
--- Update mouse position in meta info
+-- Update mouse position
 handleKeys (EventMotion (xPos, yPos)) state =
   state {userMousePosition = newUserMousePosition}
   where
     newUserMousePosition = (xPos, yPos)
 handleKeys (EventKey (MouseButton RightButton) Down _ _) state =
   state
-    { thisMapInfo = newMapInfo
+    { mapInfo = newMapInfo
     }
   where
     newMapInfo = oldMapInfo {enemyBalls = newEnemyBalls}
-    oldMapInfo = thisMapInfo state
-    newEnemyBalls = (enemyBalls oldMapInfo) ++ [EnemyPeg (userMousePosition state) currentRadius (Destructible 1)]
+    oldMapInfo = mapInfo state
+    newEnemyBalls = enemyBalls oldMapInfo ++ [EnemyPeg (userMousePosition state) currentRadius (Destructible 1)]
     currentRadius = case currentBall state of
       Nothing -> 10
       Just ball -> enemyRadius ball
@@ -70,13 +70,14 @@ emptyMap =
       ceilingY = 300
     }
 
+-- Get editor state from map and sprites
 editorStateFrom :: MapInfo -> Sprites -> MapEditorState
 editorStateFrom map sprites =
   Game
     { currentBall = Just (EnemyPeg (0, 0) 10 (Destructible 1)),
       userMousePosition = (0, 0),
-      thisMapInfo = map,
-      thisSprites = sprites
+      mapInfo = map,
+      sprites = sprites
     }
 
 render ::
@@ -89,7 +90,7 @@ render state =
     textPicture = translate (- fromIntegral width / 2) (- fromIntegral height / 2 + 30) (scale 0.2 0.2 (color green (text textToPrint)))
     textToPrint = "Press space to play the level"
 
-    allEnemyBalls = map drawEnemyBall (enemyBalls (thisMapInfo state))
+    allEnemyBalls = map drawEnemyBall (enemyBalls (mapInfo state))
       where
         drawEnemyBall :: EnemyPeg -> Picture
         drawEnemyBall (EnemyPeg enemyPosition radius _) = uncurry translate enemyPosition $ color red $ circleSolid radius
@@ -112,7 +113,7 @@ moveCurBall ::
   MapEditorState ->
   MapEditorState
 moveCurBall
-  curBall@(EnemyPeg enemyPosition enemyRadius ballType)
+  (EnemyPeg enemyPosition enemyRadius ballType)
   seconds
   state =
     state {currentBall = newCurrentBall}

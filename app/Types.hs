@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module Types (Position, Velocity, Restitution, Speed, Coords, PlayerBall (..), EnemyBallType (..), EnemyPeg (..), MetaInfo (..), GameState (..), MapInfo (..), Sprites (..)) where
+module Types (Position, Velocity, Restitution, Speed, Coords, PlayerBall (..), EnemyBallType (..), EnemyPeg (..), MapInfo (..), Sprites (..)) where
 
 import Data.Binary
 import GHC.Generics (Generic)
@@ -24,13 +24,6 @@ data PlayerBall = PlayerBall
     playerRadius :: Float
   }
 
--- | A data structure to hold the state of the game.
-data GameState = Game
-  { sprites :: Sprites,
-    mainBall :: Maybe PlayerBall,
-    metaInfo :: MetaInfo
-  }
-
 data EnemyBallType = Destructible Int | Indestructible deriving (Eq, Show, Read, Generic)
 
 data EnemyPeg = EnemyPeg
@@ -40,11 +33,6 @@ data EnemyPeg = EnemyPeg
   }
   deriving (Eq, Show, Read, Generic)
 
-data MetaInfo = MetaInfo
-  { ballsLeft :: Int,
-    mousePosition :: Position,
-    mapInfo :: MapInfo
-  }
 
 data Sprites = Sprites
   { cannonSprite :: Picture

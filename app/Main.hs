@@ -9,6 +9,7 @@ import Data.Binary
 import Data.Binary.Get (ByteOffset)
 import Data.ByteString.Lazy as ByteStringLazy
 import Data.Maybe
+import Game (GameState)
 import qualified Game
 import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Game
@@ -46,7 +47,7 @@ loadLevel fileName = do
     Left _ -> return MapEditor.emptyMap
     Right decodedMap -> return decodedMap
 
-data FullGameState = GameOn (GameState, MapInfo, Int) | EditorOn (MapEditorState, Int)
+data FullGameState = GameOn (Game.GameState, MapInfo, Int) | EditorOn (MapEditorState, Int)
 
 main :: IO ()
 main = do
@@ -55,15 +56,15 @@ main = do
   let initialFullState = GameOn (Game.initialStateFrom level sprites,level, 0)
   playIO window black fps initialFullState render handleKeys update
   where
-    -- Go to play or editor mode on 'space' pressed
+    -- Change mode on 'space' pressed
     handleKeys (EventKey (SpecialKey KeySpace) Down _ _) (GameOn (gameState, map, currentLevel)) = do
-      return $ EditorOn (MapEditor.editorStateFrom map (sprites gameState), currentLevel)
+      return $ EditorOn (MapEditor.editorStateFrom map (Game.sprites gameState), currentLevel)
     handleKeys (EventKey (SpecialKey KeySpace) Down _ _) (EditorOn (editorState, currentLevel)) = do
       saveLevel (getLevelPath currentLevel) map
       return $ GameOn (Game.initialStateFrom map sprites, map, currentLevel)
       where
-        map = MapEditor.thisMapInfo editorState
-        sprites = MapEditor.thisSprites editorState
+        map = MapEditor.mapInfo editorState
+        sprites = MapEditor.sprites editorState
 
     -- Go to next level in play mode on 'enter' being pressed with no balls on the map
     handleKeys (EventKey (SpecialKey KeyEnter) Down _ _) oldState@(GameOn (gameState, map, currentLevel)) = do
@@ -75,9 +76,9 @@ main = do
           return oldState
       where
         newState nextLevel gameState =
-          GameOn (Game.initialStateFrom nextLevel (sprites gameState), nextLevel, currentLevel + 1)
+          GameOn (Game.initialStateFrom nextLevel (Game.sprites gameState), nextLevel, currentLevel + 1)
 
-        noEnemyBallsLeft = case listToMaybe (enemyBalls (mapInfo (metaInfo gameState))) of
+        noEnemyBallsLeft = case listToMaybe (enemyBalls (Game.mapInfo gameState)) of
           Nothing -> True
           _ -> False
 

@@ -28,4 +28,4 @@ startPlayerRadius = 10
 
 -- | Global simulation settings | --
 gravity :: Vector
-gravity = (0, -3)
+gravity = (0, -6)
