@@ -6,6 +6,7 @@ import Graphics.Gloss.Data.ViewPort
 import Graphics.Gloss.Interface.IO.Game
 import Types (Coords, EnemyBallType (..), EnemyPeg (..), MapInfo (..), Position, Sprites)
 import Consts (width, height, wallColor)
+import Data.Bits (Bits(shiftL))
 
 -- | A data structure to hold the state of the map editor.
 data MapEditorState = Game
@@ -25,6 +26,28 @@ changeRadius peg delta = case peg of
       currentRadius = enemyRadius ball
       newRadius = currentRadius + delta
 
+changeBallType :: Maybe EnemyPeg -> Int -> Maybe EnemyPeg
+changeBallType peg delta = case peg of
+  Nothing -> Nothing
+  Just ball -> case ballType ball of
+    Indestructible ->
+      if
+        delta > 0
+      then
+        Just (ball {ballType = Destructible delta})
+      else
+        Just ball
+    Destructible curDurability -> 
+      if 
+        newDurability > 0 
+      then 
+        Just (ball {ballType = Destructible newDurability}) 
+      else 
+        Just (ball {ballType = Indestructible})
+      where
+        newDurability = curDurability + delta
+
+
 inBoundaries :: Coords -> Float -> Bool
 inBoundaries cords radius = condition
   where
@@ -34,12 +57,13 @@ inBoundaries cords radius = condition
         (x, y) = cords
 
 
--- Update mouse position
+-- | Update mouse position.
 handleKeys (EventMotion (xPos, yPos)) state =
   state {userMousePosition = newUserMousePosition}
   where
     newUserMousePosition = (xPos, yPos)
 
+-- | Place a new enemy ball.
 handleKeys (EventKey (MouseButton RightButton) Down _ _) state =
   state
     { mapInfo = newMapInfo
@@ -47,11 +71,15 @@ handleKeys (EventKey (MouseButton RightButton) Down _ _) state =
   where
     newMapInfo = oldMapInfo {enemyBalls = newEnemyBalls}
     oldMapInfo = mapInfo state
-    newEnemyBalls = enemyBalls oldMapInfo ++
-      [EnemyPeg (userMousePosition state) currentRadius (Destructible 1) |
-        inBoundaries (userMousePosition state) currentRadius]
-    currentRadius = maybe 10 enemyRadius (currentBall state)
 
+    newEnemyBalls = enemyBalls oldMapInfo ++
+      [EnemyPeg (userMousePosition state) curBallRadius curBallType |
+        inBoundaries (userMousePosition state) curBallRadius]
+    curBallRadius = maybe 10 enemyRadius curBall
+    curBallType = maybe (Destructible 1) ballType curBall
+    curBall = currentBall state
+
+-- | Remove balls intersecting with current ball.
 handleKeys (EventKey (MouseButton LeftButton) Down _ _) state =
   state
     { mapInfo = newMapInfo
@@ -68,22 +96,35 @@ handleKeys (EventKey (MouseButton LeftButton) Down _ _) state =
             currentRadius = maybe 10 enemyRadius (currentBall state)
         (mouseX, mouseY) = userMousePosition state
 
-handleKeys (EventKey (MouseButton WheelUp) _ _ _) state =
+-- | Change on Wheel Up:
+-- | * Size without Shift
+-- | * Durability with Shift
+handleKeys (EventKey (MouseButton WheelUp) _ modif _) state =
   state
     { currentBall = newCurrentBall
     }
   where
     oldCurBall = currentBall state
-    newCurrentBall = changeRadius oldCurBall 1
-handleKeys (EventKey (MouseButton WheelDown) _ _ _) state =
-  state
-    { currentBall = newCurrentBall
-    }
-  where
-    oldCurBall = currentBall state
-    newCurrentBall = changeRadius oldCurBall (-1)
+    newCurrentBall = case shift_ of
+      Down -> changeBallType oldCurBall 1
+      Up -> changeRadius oldCurBall 1
+    (Modifiers shift_ _ _) = modif
 
--- Do nothing for all other events.
+-- | Change on Wheel Down:
+-- | * Size without Shift
+-- | * Durability with Shift
+handleKeys (EventKey (MouseButton WheelDown) _ modif _) state =
+  state
+    { currentBall = newCurrentBall
+    }
+  where
+    oldCurBall = currentBall state
+    newCurrentBall = case shift_ of
+      Down -> changeBallType oldCurBall (-1)
+      Up -> changeRadius oldCurBall (-1)
+    (Modifiers shift_ _ _) = modif
+
+-- | Do nothing for all other events.
 handleKeys _ state = state
 
 emptyMap :: MapInfo
@@ -142,7 +183,7 @@ render state =
     ball = case currentBall state of
       Nothing -> blank
       Just (EnemyPeg enemyPosition enemyRadius _) -> uncurry translate enemyPosition $ color red $ circleSolid enemyRadius
-    
+
 -- | Update the game by moving the ball and bouncing off walls.
 update ::
   Float ->
@@ -150,7 +191,7 @@ update ::
   MapEditorState
 update seconds state = case currentBall state of
   Nothing -> state
-  Just curBall -> 
+  Just curBall ->
     if
       inBoundaries (userMousePosition state) (enemyRadius curBall)
     then
