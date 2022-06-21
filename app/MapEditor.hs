@@ -4,9 +4,11 @@ import Graphics.Gloss
 import Graphics.Gloss.Data.Vector
 import Graphics.Gloss.Data.ViewPort
 import Graphics.Gloss.Interface.IO.Game
-import Types (Coords, EnemyBallType (..), EnemyPeg (..), MapInfo (..), Position, Sprites)
+import Types (Coords, EnemyBallType (..), EnemyPeg (..), MapInfo (..), Position, Sprites, PlayerBall (playerRadius))
 import Consts (width, height, wallColor)
 import Data.Bits (Bits(shiftL))
+import Graphics.UI.GLUT.Fonts
+import Data.Data (ConstrRep(FloatConstr))
 
 -- | A data structure to hold the state of the map editor.
 data MapEditorState = Game
@@ -37,12 +39,12 @@ changeBallType peg delta = case peg of
         Just (ball {ballType = Destructible delta})
       else
         Just ball
-    Destructible curDurability -> 
-      if 
-        newDurability > 0 
-      then 
-        Just (ball {ballType = Destructible newDurability}) 
-      else 
+    Destructible curDurability ->
+      if
+        newDurability > 0
+      then
+        Just (ball {ballType = Destructible newDurability})
+      else
         Just (ball {ballType = Indestructible})
       where
         newDurability = curDurability + delta
@@ -152,12 +154,24 @@ render ::
   MapEditorState -> -- The map state to render.
   Picture
 render state =
-  ball <> pictures allEnemyBalls <> textPicture <> wallsPicture
+   ball <> pictures allEnemyBalls <> textPicture <> wallsPicture <> texTT
   where
     -- Text rendering
     textPicture = translate (- fromIntegral width / 2 + 40)  (- fromIntegral height / 2 + 20) (scale 0.2 0.2 (color green (text textToPrint)))
     textToPrint = "Press space to play the level"
-
+    texTT = scale 0.2 0.2 $ translate (-width * 0.5) (-height * 0.5) (color green (text textToPrint))
+      where
+        textToPrint = case currentBall state of
+          Nothing -> show 0
+          Just b -> 
+            case ballType b of 
+              Indestructible -> "Inf"
+              Destructible t -> show t
+        width :: Float
+        width = stringWidth Roman textToPrint
+        height :: Float
+        height = fontHeight Roman
+        
     wallsPicture = leftWall <> rightWall <> ceiling
       where
         leftWall = translate (curLeftX - wallWidth) (curFloorY + wallHeight / 2) $
@@ -183,7 +197,6 @@ render state =
     ball = case currentBall state of
       Nothing -> blank
       Just (EnemyPeg enemyPosition enemyRadius _) -> uncurry translate enemyPosition $ color red $ circleSolid enemyRadius
-
 -- | Update the game by moving the ball and bouncing off walls.
 update ::
   Float ->
