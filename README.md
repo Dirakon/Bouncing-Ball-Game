@@ -1,5 +1,7 @@
 # Bouncing-Ball-Game
 
+![image](https://user-images.githubusercontent.com/50139678/174792711-d5012e5d-04a1-4528-9230-ea11b3aa06ce.png)
+
 ### Project description
 
 Game:
@@ -16,6 +18,7 @@ First, you should clone the repository with `git clone https://github.com/Dirako
 Second, you should change directory by `cd Bouncing-Ball-Game`.
 
 After that, use `cabal build` followed by `cabal run` to play the game.
+(For the last step, you will need [Cabal tool](https://www.haskell.org/cabal/))
 
 To play, use mouse to set ball trajectory and left-click to shoot.
 In editor mode, use mouse wheel to change size of the ball, right-click to place the ball, left-click to remove the ball.
