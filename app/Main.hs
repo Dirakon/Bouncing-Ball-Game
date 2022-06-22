@@ -18,6 +18,8 @@ import MapEditor (MapEditorState)
 import qualified MapEditor
 import System.Directory (doesFileExist)
 import Types
+import Graphics.UI.GLUT (Font(stringWidth), StrokeFont (Roman))
+import TextSizeAnalysis
 
 window :: Display
 window = InWindow "Game" (width, height) (offset, offset)
@@ -51,11 +53,14 @@ data FullGameState = GameOn (Game.GameState, Int) | EditorOn (MapEditorState, In
 
 main :: IO ()
 main = do
+
+
   level <- loadLevel (getLevelPath 0)
   sprites <- loadSprites
   let initialFullState = GameOn (Game.initialStateFrom level sprites, 0)
   playIO window black fps initialFullState render handleKeys update
   where
+
     -- Change mode on 'space' pressed
     handleKeys (EventKey (SpecialKey KeySpace) Down _ _) (GameOn (gameState, currentLevel)) = do
       return $ EditorOn (MapEditor.editorStateFrom (Game.initialMap gameState) (Game.sprites gameState), currentLevel)
@@ -68,6 +73,7 @@ main = do
 
     -- Go to next level in play mode on 'enter' being pressed with no balls on the map
     handleKeys (EventKey (SpecialKey KeyEnter) Down _ _) oldState@(GameOn (gameState, currentLevel)) = do
+     -- setTextSizes
       if noEnemyBallsLeft
         then do
           nextLevel <- loadLevel (getLevelPath (currentLevel + 1))
@@ -85,7 +91,7 @@ main = do
     -- Choose handleKeys function depending on current mode
     handleKeys event (GameOn (gameState, currentLevel)) =
       return $ GameOn (Game.handleKeys event gameState, currentLevel)
-    handleKeys event (EditorOn (editorState, currentLevel)) =
+    handleKeys event (EditorOn (editorState, currentLevel)) = do
       return $ EditorOn (MapEditor.handleKeys event editorState, currentLevel)
 
     -- Choose render function depending on current mode

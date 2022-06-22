@@ -32,6 +32,7 @@ executable gloss-template
       Consts
       MathUtils
       Game
+      TextSizeAnalysis
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:    base >=4 , gloss, gloss-juicy, bytestring, binary, directory, GLUT

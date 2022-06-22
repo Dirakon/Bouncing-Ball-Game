@@ -9,6 +9,7 @@ import Consts (width, height, wallColor)
 import Data.Bits (Bits(shiftL))
 import Graphics.UI.GLUT.Fonts
 import Data.Data (ConstrRep(FloatConstr))
+import TextSizeAnalysis (estimateTextWidth, alignedCenterText)
 
 -- | A data structure to hold the state of the map editor.
 data MapEditorState = Game
@@ -157,20 +158,17 @@ render state =
    ball <> pictures allEnemyBalls <> textPicture <> wallsPicture <> texTT
   where
     -- Text rendering
-    textPicture = translate (- fromIntegral width / 2 + 40)  (- fromIntegral height / 2 + 20) (scale 0.2 0.2 (color green (text textToPrint)))
+    textPicture = translate 0  (- fromIntegral height / 2 + 20) (scale 0.2 0.2 (color green (alignedCenterText textToPrint)))
     textToPrint = "Press space to play the level"
-    texTT = scale 0.2 0.2 $ translate (-width * 0.5) (-height * 0.5) (color green (text textToPrint))
+    texTT =  scale 0.2 0.2 $ translate ( 0.5) ( 0.5) (color green (text textToPrint))
       where
+        (textWidth,textHeight) = estimateTextWidth textToPrint
         textToPrint = case currentBall state of
           Nothing -> show 0
           Just b -> 
             case ballType b of 
               Indestructible -> "Inf"
               Destructible t -> show t
-        width :: Float
-        width = stringWidth Roman textToPrint
-        height :: Float
-        height = fontHeight Roman
         
     wallsPicture = leftWall <> rightWall <> ceiling
       where

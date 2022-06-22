@@ -12,6 +12,7 @@ import Graphics.Gloss.Geometry.Angle (radToDeg)
 import Graphics.Gloss.Interface.IO.Game
 import MathUtils
 import Types (Coords, EnemyBallType (..), EnemyPeg (..), MapInfo (..), PlayerBall (..), Position, Restitution, Speed, Sprites (cannonSprite), Velocity)
+import TextSizeAnalysis (alignedCenterText)
 
 
 -- | A data structure to hold the state of the game.
@@ -50,7 +51,7 @@ render state =
   ballTrajectory <> ball <> pictures allEnemyBalls <> cannonPicture <> textPicture <> wallsPicture
   where
     -- Text rendering
-    textPicture = translate (- fromIntegral width / 2 + 40)  (- fromIntegral height / 2 + 20) (scale 0.2 0.2 (color green (text textToPrint)))
+    textPicture = translate 0  (- fromIntegral height / 2 + 20) (scale 0.2 0.2 (color green (alignedCenterText textToPrint)))
     textToPrint
       | noEnemyBallsLeft = "You won! Press enter to visit the next level."
       | lives > 0 = "Balls left: " ++ show lives ++ " (press space to edit the level)"
