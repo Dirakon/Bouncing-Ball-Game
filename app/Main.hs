@@ -1,28 +1,30 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
-module Main (main) where
+module Main (main,MetaInfo) where
 
+import Sounds
 import Consts
 import Control.Monad (unless)
 import Data.Binary
 import Data.Binary.Get (ByteOffset)
 import Data.ByteString.Lazy as ByteStringLazy
 import Data.Maybe
-import Game (GameState)
 import qualified Game
 import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Game
 import Graphics.Gloss.Juicy (loadJuicyPNG)
-import MapEditor (MapEditorState)
 import qualified MapEditor
 import System.Directory (doesFileExist)
 import Types
 import Graphics.UI.GLUT (Font(stringWidth), StrokeFont (Roman))
 import TextSizeAnalysis
+import SDL.Mixer (Chunk)
 
 window :: Display
 window = InWindow "Game" (width, height) (offset, offset)
+
+
 
 loadSprites :: IO Sprites
 loadSprites = do
@@ -49,60 +51,69 @@ loadLevel fileName = do
     Left _ -> return MapEditor.emptyMap
     Right decodedMap -> return decodedMap
 
-data FullGameState = GameOn (Game.GameState, Int) | EditorOn (MapEditorState, Int)
+data GameState =  GameOn Game.GameState | EditorOn MapEditor.MapEditorState
 
 main :: IO ()
 main = do
 
-
-  level <- loadLevel (getLevelPath 0)
+  initSounds
+  let initialLevelIndex = 0
+  level <- loadLevel (getLevelPath initialLevelIndex)
   sprites <- loadSprites
-  let initialFullState = GameOn (Game.initialStateFrom level sprites, 0)
+
+  let initialMetaInfo = MetaInfo initialLevelIndex [] [] sprites
+
+  let initialFullState = GameOn (Game.initialStateFrom level initialMetaInfo)
   playIO window black fps initialFullState render handleKeys update
   where
 
     -- Change mode on 'space' pressed
-    handleKeys (EventKey (SpecialKey KeySpace) Down _ _) (GameOn (gameState, currentLevel)) = do
-      return $ EditorOn (MapEditor.editorStateFrom (Game.initialMap gameState) (Game.sprites gameState), currentLevel)
-    handleKeys (EventKey (SpecialKey KeySpace) Down _ _) (EditorOn (editorState, currentLevel)) = do
-      saveLevel (getLevelPath currentLevel) map
-      return $ GameOn (Game.initialStateFrom map sprites, currentLevel)
+    handleKeys (EventKey (SpecialKey KeySpace) Down _ _) (GameOn gameState) = do
+      playAllSounds [] ["change_mode"]
+      return  $EditorOn (MapEditor.editorStateFrom (Game.initialMap gameState) (Game.metaInfo gameState))
+    handleKeys (EventKey (SpecialKey KeySpace) Down _ _) (EditorOn editorState) = do
+      playAllSounds [] ["change_mode"]
+      saveLevel (getLevelPath (currentLevel metaInfo)) map
+      return  $GameOn (Game.initialStateFrom map metaInfo)
       where
         map = MapEditor.mapInfo editorState
-        sprites = MapEditor.sprites editorState
+        metaInfo = MapEditor.metaInfo editorState
 
     -- Go to next level in play mode on 'enter' being pressed with no balls on the map
-    handleKeys (EventKey (SpecialKey KeyEnter) Down _ _) oldState@(GameOn (gameState, currentLevel)) = do
+    handleKeys (EventKey (SpecialKey KeyEnter) Down _ _) oldState@(GameOn gameState) = do
      -- setTextSizes
       if noEnemyBallsLeft
         then do
-          nextLevel <- loadLevel (getLevelPath (currentLevel + 1))
+          nextLevel <- loadLevel (getLevelPath (currentLevel metaInfo + 1))
           return (newState nextLevel gameState)
         else do
           return oldState
       where
+        metaInfo = Game.metaInfo gameState
         newState nextLevel gameState =
-          GameOn (Game.initialStateFrom nextLevel (Game.sprites gameState), currentLevel + 1)
+          GameOn (Game.initialStateFrom nextLevel (metaInfo{currentLevel = currentLevel metaInfo + 1}))
 
         noEnemyBallsLeft = case listToMaybe (enemyBalls (Game.mapInfo gameState)) of
           Nothing -> True
           _ -> False
 
     -- Choose handleKeys function depending on current mode
-    handleKeys event (GameOn (gameState, currentLevel)) =
-      return $ GameOn (Game.handleKeys event gameState, currentLevel)
-    handleKeys event (EditorOn (editorState, currentLevel)) = do
-      return $ EditorOn (MapEditor.handleKeys event editorState, currentLevel)
+    handleKeys event (GameOn gameState) =
+      return (GameOn (Game.handleKeys event gameState))
+    handleKeys event (EditorOn editorState) = do
+      return (EditorOn (MapEditor.handleKeys event editorState))
 
     -- Choose render function depending on current mode
-    render (EditorOn (mapEditorState, _)) = return $ MapEditor.render mapEditorState
-    render (GameOn (gameState, _)) = return $ Game.render gameState
+    render (EditorOn mapEditorState) = return $ MapEditor.render mapEditorState
+    render (GameOn gameState) = return $ Game.render gameState
 
     -- Choose update function depending on current mode
-    update dt (EditorOn (mapEditorState, currentLevel)) =
-      return $ EditorOn (MapEditor.update dt mapEditorState, currentLevel)
-    update dt (GameOn (gameState, currentLevel)) =
-      return $ GameOn (Game.update dt gameState, currentLevel)
+    update dt (EditorOn mapEditorState) = do
+      newMetaInfo <- playRequestedSounds $ MapEditor.metaInfo mapEditorState
+      return (EditorOn (MapEditor.update dt mapEditorState{MapEditor.metaInfo = newMetaInfo}))
+    update dt (GameOn gameState) =do
+      newMetaInfo <- playRequestedSounds $ Game.metaInfo gameState
+      return(GameOn (Game.update dt gameState{Game.metaInfo = newMetaInfo}))
 
 getLevelPath :: Int -> FilePath
 getLevelPath levelIndex = "levels/level" ++ show levelIndex

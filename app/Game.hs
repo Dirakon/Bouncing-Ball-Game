@@ -11,30 +11,31 @@ import Graphics.Gloss.Data.ViewPort
 import Graphics.Gloss.Geometry.Angle (radToDeg)
 import Graphics.Gloss.Interface.IO.Game
 import MathUtils
-import Types (Coords, EnemyBallType (..), EnemyPeg (..), MapInfo (..), PlayerBall (..), Position, Restitution, Speed, Sprites (cannonSprite), Velocity)
+import Types (Coords, EnemyBallType (..), EnemyPeg (..), MapInfo (..), PlayerBall (..), Position, Restitution, Speed, Sprites (cannonSprite), Velocity, MetaInfo (..))
 import TextSizeAnalysis (alignedCenterText)
 
 
 -- | A data structure to hold the state of the game.
 data GameState = Game
-  { sprites :: Sprites,
+  {
     mainBall :: Maybe PlayerBall,
     ballsLeft :: Int,
     userMousePosition :: Position,
     mapInfo :: MapInfo,
-    initialMap :: MapInfo
+    initialMap :: MapInfo,
+    metaInfo :: MetaInfo
   }
 
--- Generate initial game state depending on the map and sprites
-initialStateFrom :: MapInfo -> Sprites -> GameState
-initialStateFrom mapInfo sprites =
+-- Generate initial game state depending on the map and metaInfo.
+initialStateFrom :: MapInfo -> MetaInfo -> GameState
+initialStateFrom mapInfo metaInfo =
   Game
     { mainBall = Nothing,
       ballsLeft = 6,
       userMousePosition = (0, 0),
       mapInfo = mapInfo,
       initialMap = mapInfo,
-      sprites = sprites
+      metaInfo = metaInfo
     }
 
 -- | Update the game by moving the ball and bouncing of walls and enemies.
@@ -58,7 +59,7 @@ render state =
       | otherwise = "You lost... Press 's' to restart..."
 
     -- Cannon rendering
-    cannonPicture = translate cannonX cannonY (rotate cannonRotation (cannonSprite (sprites state)))
+    cannonPicture = translate cannonX cannonY (rotate cannonRotation (cannonSprite (sprites $metaInfo state)))
     (cannonX, cannonY) = cannonPosition mapData
     cannonRotation =
       sign * radToDeg (angleVV (1, 0) directionFromCannonToMouse) - 90
@@ -94,7 +95,7 @@ render state =
       Nothing -> blank
       Just (PlayerBall (x, y) _ _ _ radius) -> translate x y $ color ballColor $ circleSolid radius
     ballColor = dark white
-    
+
     -- | Enemy color
     enemyColor = dark red
 
@@ -103,7 +104,7 @@ render state =
     ballTrajectory = if playerBallIsDeployed
       then
         blank
-      else 
+      else
         color
           yellow
           ( Line
@@ -120,7 +121,7 @@ render state =
     lives = ballsLeft state
     playerBallIsDeployed = case mainBall state of
       Nothing -> False
-      _ -> True 
+      _ -> True
     noEnemyBallsLeft = case listToMaybe (enemyBalls mapData) of
       Nothing -> True
       _ -> False
@@ -183,12 +184,20 @@ moveAndBounceBall
   playerBall@(PlayerBall playerPos@(x,y) playerDir@(oldDirX,oldDirY) playerRestitution speed playerRadius)
   seconds
   state =
-    state {mainBall = movedPlayerBall}  {mapInfo = newMapInfo} {ballsLeft = newBallsLeft}
+    state {mainBall = movedPlayerBall}  {mapInfo = newMapInfo} {ballsLeft = newBallsLeft} {metaInfo = newMetaInfo}
     where
       -- Decrease balls lefts if ball dies this frame
       newBallsLeft = case movedPlayerBall of
         Nothing ->  ballsLeft state - 1
-        _ -> ballsLeft state 
+        _ -> ballsLeft state
+
+      newMetaInfo =
+        updateMetaInfoSounds [bumpSound] (metaInfo state)
+        where
+          bumpSound =
+            if or [collidedWithEnemyBall,collidedWithLeftWall,collidedWithRightWall,collidedWithCeiling]
+              then Just "bump"
+              else Nothing
 
       -- Update map
       newMapInfo = oldMapInfo {enemyBalls = newEnemyBalls}
@@ -214,7 +223,7 @@ moveAndBounceBall
           else Nothing
       alive = not collidedWithFloor
 
-        
+
       -- Change current direction on collision
       curDirX
         | collidedWithEnemyBall = fst velocityBouncedOnEnemies
@@ -320,16 +329,28 @@ handleKeys :: Event -> GameState -> GameState
 
 -- Restart game on 's' entered
 handleKeys (EventKey (Char 's') Down _ _) state =
-  initialStateFrom (initialMap state) (sprites state)
+  initialStateFrom (initialMap state) (updateMetaInfoSounds [Just "reset_level"] (metaInfo state))
 
 -- Spawn ball on mouse click (if has balls left and ball is not deployed yet)
 handleKeys (EventKey (MouseButton LeftButton) Down _ (xPos, yPos)) state =
-  state {mainBall = newMainBall}
+  state {mainBall = newMainBall} {metaInfo = newMetaInfo}
   where
     newMainBall = case mainBall state of
       Nothing -> if hasAnyBallsLeft then Just spawnedBall else Nothing
       alreadyExistingBall -> alreadyExistingBall
+    
+  
+    newMetaInfo =
+      updateMetaInfoSounds [spawnSound] (metaInfo state)
+      where
+        spawnSound  =
+          if not ballIsAlreadyPlaced && hasAnyBallsLeft
+            then Just "ball_spawn"
+            else Nothing
 
+    ballIsAlreadyPlaced = case mainBall state of
+      Nothing -> False
+      _ -> True
     hasAnyBallsLeft = ballsLeft state > 0
     spawnedBall = PlayerBall cannonCoords ballVelocity startPlayerRestitution startPlayerSpeed startPlayerRadius
     cannonCoords = cannonPosition (mapInfo  state)
@@ -343,3 +364,14 @@ handleKeys (EventMotion (xPos, yPos)) state =
 
 -- Do nothing for all other events.
 handleKeys _ game = game
+
+
+updateMetaInfoSounds::[Maybe String]->MetaInfo->MetaInfo
+updateMetaInfoSounds [] metaInfo = metaInfo
+updateMetaInfoSounds (maybeString:others) oldMetaInfo  =
+        oldMetaInfo{soundRequestList = newSoundRequests}
+        where
+          oldSoundRequests = soundRequestList oldMetaInfo
+          newSoundRequests =
+            oldSoundRequests ++ soundRequestAdditions
+          soundRequestAdditions = maybeToList maybeString

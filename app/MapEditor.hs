@@ -4,7 +4,7 @@ import Graphics.Gloss
 import Graphics.Gloss.Data.Vector
 import Graphics.Gloss.Data.ViewPort
 import Graphics.Gloss.Interface.IO.Game
-import Types (Coords, EnemyBallType (..), EnemyPeg (..), MapInfo (..), Position, Sprites, PlayerBall (playerRadius))
+import Types (Coords, EnemyBallType (..), EnemyPeg (..), MapInfo (..), Position, Sprites, PlayerBall (playerRadius), MetaInfo)
 import Consts (width, height, wallColor)
 import Data.Bits (Bits(shiftL))
 import Graphics.UI.GLUT.Fonts
@@ -16,7 +16,7 @@ data MapEditorState = Game
   { currentBall :: Maybe EnemyPeg,
     mapInfo :: MapInfo,
     userMousePosition :: Position,
-    sprites :: Sprites
+    metaInfo :: MetaInfo
   }
 
 changeRadius :: Maybe EnemyPeg -> Float -> Maybe EnemyPeg
@@ -141,14 +141,14 @@ emptyMap =
       ceilingY = 300
     }
 
--- Get editor state from map and sprites
-editorStateFrom :: MapInfo -> Sprites -> MapEditorState
-editorStateFrom map sprites =
+-- Get editor state from map, and meta-info
+editorStateFrom :: MapInfo -> MetaInfo -> MapEditorState
+editorStateFrom map metaInfo =
   Game
     { currentBall = Just (EnemyPeg (0, 0) 10 (Destructible 1)),
       userMousePosition = (0, 0),
       mapInfo = map,
-      sprites = sprites
+      metaInfo = metaInfo
     }
 
 render ::

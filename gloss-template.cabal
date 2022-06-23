@@ -33,8 +33,9 @@ executable gloss-template
       MathUtils
       Game
       TextSizeAnalysis
+      Sounds
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
-    build-depends:    base >=4 , gloss, gloss-juicy, bytestring, binary, directory, GLUT
+    build-depends:    base >=4,sdl2,sdl2-mixer, gloss, gloss-juicy, bytestring, binary, directory, GLUT, data-default-class
     hs-source-dirs:   app
     default-language: Haskell2010
