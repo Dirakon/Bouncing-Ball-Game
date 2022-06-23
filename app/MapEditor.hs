@@ -160,16 +160,22 @@ render state =
     -- Text rendering
     textPicture = translate 0  (- fromIntegral height / 2 + 20) (scale 0.2 0.2 (color green (alignedCenterText textToPrint)))
     textToPrint = "Press space to play the level"
-    texTT =  scale 0.2 0.2 $ translate ( 0.5) ( 0.5) (color green (text textToPrint))
+    texTT =  translate playerX (playerY + radius / 5) $ scale mult mult (color green (alignedCenterText textToPrint))
       where
         (textWidth,textHeight) = estimateTextWidth textToPrint
-        textToPrint = case currentBall state of
+        textToPrint = case player of  
           Nothing -> show 0
-          Just b -> 
-            case ballType b of 
+          Just b ->
+            case ballType b of
               Indestructible -> "Inf"
               Destructible t -> show t
-        
+        player = currentBall state
+        playerCords = userMousePosition state
+        (playerX, playerY) = playerCords
+        radius = maybe 10 enemyRadius player
+        mult = radius / 100 / sqrt(fromIntegral (length textToPrint))
+
+
     wallsPicture = leftWall <> rightWall <> ceiling
       where
         leftWall = translate (curLeftX - wallWidth) (curFloorY + wallHeight / 2) $
