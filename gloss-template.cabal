@@ -21,6 +21,10 @@ maintainer:         609700zxc@mail.ru
 -- category:
 extra-source-files: CHANGELOG.md
 
+flag sound
+  description: enables sound with SDL2
+  default: True
+
 executable gloss-template
     main-is:          Main.hs
 
@@ -36,6 +40,10 @@ executable gloss-template
       Sounds
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
-    build-depends:    base >=4,sdl2,sdl2-mixer, gloss, gloss-juicy, bytestring, binary, directory, GLUT, data-default-class
+    if !flag(sound)
+      build-depends: base >=4, gloss, gloss-juicy, bytestring, binary, directory, GLUT, data-default-class
+    if flag(sound)
+      build-depends:base >=4, gloss, gloss-juicy, bytestring, binary, directory, GLUT, data-default-class, sdl2,sdl2-mixer,
+      cpp-options: -DSoundEnabled
     hs-source-dirs:   app
     default-language: Haskell2010

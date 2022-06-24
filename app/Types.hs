@@ -1,11 +1,16 @@
 {-# LANGUAGE DeriveGeneric #-}
-
-module Types (Position, Velocity, Restitution, Speed, Coords, PlayerBall (..), EnemyBallType (..), EnemyPeg (..), MapInfo (..), Sprites (..),MetaInfo(..)) where
+{-# LANGUAGE CPP #-}
+module Types (Position, Velocity, Restitution, Speed, Coords, PlayerBall (..), EnemyBallType (..), EnemyPeg (..), MapInfo (..), Sprites (..),MetaInfo(..),SoundList) where
 
 import Data.Binary
 import GHC.Generics (Generic)
 import Graphics.Gloss (Picture)
+#ifdef SoundEnabled
 import SDL.Mixer (Chunk)
+type SoundList = [(String,Chunk)]
+#else
+type SoundList = [()]
+#endif
 
 type Position = (Float, Float)
 
@@ -17,9 +22,10 @@ type Speed = Float
 
 type Coords = (Float, Float)
 
+
 data MetaInfo = MetaInfo{
   currentLevel:: Int,
-  soundList :: [(String,Chunk)],
+  soundList :: SoundList,
   soundRequestList :: [String],
   sprites :: Sprites
 }

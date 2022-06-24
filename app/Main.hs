@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-
+{-# LANGUAGE CPP #-}
 module Main (main,MetaInfo) where
 
 import Sounds
@@ -19,7 +19,6 @@ import System.Directory (doesFileExist)
 import Types
 import Graphics.UI.GLUT (Font(stringWidth), StrokeFont (Roman))
 import TextSizeAnalysis
-import SDL.Mixer (Chunk)
 
 window :: Display
 window = InWindow "Game" (width, height) (offset, offset)
@@ -65,6 +64,7 @@ main = do
 
   let initialFullState = GameOn (Game.initialStateFrom level initialMetaInfo)
   playIO window black fps initialFullState render handleKeys update
+  closeSounds
   where
 
     -- Change mode on 'space' pressed
@@ -114,6 +114,6 @@ main = do
     update dt (GameOn gameState) =do
       newMetaInfo <- playRequestedSounds $ Game.metaInfo gameState
       return(GameOn (Game.update dt gameState{Game.metaInfo = newMetaInfo}))
-
+  
 getLevelPath :: Int -> FilePath
 getLevelPath levelIndex = "levels/level" ++ show levelIndex
