@@ -13,12 +13,13 @@ The process of level creation is simple because the game has a built-in map edit
 
 
 ### How to run the game
-First, you should clone the repository with `git clone https://github.com/Dirakon/Bouncing-Ball-Game.git`.
+For installation, you will need [Cabal tool](https://www.haskell.org/cabal/), [SDL 2](https://www.libsdl.org/download-2.0.php), [SDL_mixer 2](https://libsdl.org/projects/SDL_mixer/)
 
-Second, you should change directory by `cd Bouncing-Ball-Game`.
-
-After that, use `cabal build` followed by `cabal run` to play the game.
-(For the last step, you will need [Cabal tool](https://www.haskell.org/cabal/))
+Then, do<br>
+<pre>git clone https://github.com/Dirakon/Bouncing-Ball-Game.git<br>
+cd Bouncing-Ball-Game<br>
+cabal build<br>
+cabal run</pre>.
 
 To play, use mouse to set ball trajectory and left-click to shoot.
 In editor mode, use mouse wheel to change size of the ball, right-click to place the ball, left-click to remove the ball.
