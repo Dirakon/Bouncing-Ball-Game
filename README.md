@@ -16,7 +16,7 @@ The process of level creation is simple because the game has a built-in map edit
 For installation, you will need [Cabal tool](https://www.haskell.org/cabal/), [SDL 2](https://www.libsdl.org/download-2.0.php), [SDL_mixer 2](https://libsdl.org/projects/SDL_mixer/)
 
 Alternatively, if you have a problem with installing either SDL or SDL_mixer, you could manually disable sounds:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;You will need to go to `*.cabal` file in the project, and set `sounds` flag to False as default
+&nbsp;&nbsp;&nbsp;&nbsp;You will need to go to `*.cabal` file in the project, and set `sound` flag to False as default
 
 Then, do<br>
 <pre>git clone https://github.com/Dirakon/Bouncing-Ball-Game.git<br>
@@ -29,6 +29,6 @@ In editor mode, use mouse wheel to change size of the ball, right-click to place
 
 
 ### Acknowledgements
-The usage of SDL2_mixer is based on [this example](https://gitlab.homotopic.tech/haskell/sdl2-mixer/-/blob/master/examples/Basic/Main.hs).
-The usage of Gloss is based on [this post](https://andrew.gibiansky.com/blog/haskell/haskell-gloss/).
-The usage of C pre-processor is based on [this thread](https://stackoverflow.com/questions/6361846/where-can-i-learn-about-ifdef)
+The usage of SDL2_mixer is based on [this example](https://gitlab.homotopic.tech/haskell/sdl2-mixer/-/blob/master/examples/Basic/Main.hs). <br>
+The usage of Gloss is based on [this post](https://andrew.gibiansky.com/blog/haskell/haskell-gloss/). <br>
+The usage of C pre-processor is based on [this thread](https://stackoverflow.com/questions/6361846/where-can-i-learn-about-ifdef). <br>
