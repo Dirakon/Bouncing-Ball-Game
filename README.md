@@ -22,7 +22,7 @@ Then, do<br>
 <pre>git clone https://github.com/Dirakon/Bouncing-Ball-Game.git<br>
 cd Bouncing-Ball-Game<br>
 cabal build<br>
-cabal run</pre>.
+cabal run</pre>
 
 To play, use mouse to set ball trajectory and left-click to shoot.
 In editor mode, use mouse wheel to change size of the ball, right-click to place the ball, left-click to remove the ball.
