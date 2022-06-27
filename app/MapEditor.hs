@@ -163,14 +163,14 @@ render state =
     texTT =  translate playerX (playerY + radius / 5) $ scale mult mult (color green (alignedCenterText textToPrint))
       where
         (textWidth,textHeight) = estimateTextWidth textToPrint
-        textToPrint = case player of  
+        textToPrint = case player of
           Nothing -> show 0
           Just b ->
             case ballType b of
               Indestructible -> "Inf"
               Destructible t -> show t
         player = currentBall state
-        playerCords = userMousePosition state
+        playerCords = maybe (0, 0) enemyPosition player
         (playerX, playerY) = playerCords
         radius = maybe 10 enemyRadius player
         mult = radius / 100 / sqrt(fromIntegral (length textToPrint))

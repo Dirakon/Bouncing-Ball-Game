@@ -12,7 +12,7 @@ import Graphics.Gloss.Geometry.Angle (radToDeg)
 import Graphics.Gloss.Interface.IO.Game
 import MathUtils
 import Types (Coords, EnemyBallType (..), EnemyPeg (..), MapInfo (..), PlayerBall (..), Position, Restitution, Speed, Sprites (cannonSprite), Velocity, MetaInfo (..))
-import TextSizeAnalysis (alignedCenterText)
+import TextSizeAnalysis (alignedCenterText, estimateTextWidth)
 
 
 -- | A data structure to hold the state of the game.
@@ -88,7 +88,17 @@ render state =
     allEnemyBalls = map drawEnemyBall (enemyBalls mapData)
       where
         drawEnemyBall :: EnemyPeg -> Picture
-        drawEnemyBall (EnemyPeg (x, y) radius _) = translate x y $ color enemyColor $ circleSolid radius
+        drawEnemyBall (EnemyPeg (x, y) radius enemyType) = translate x y (color enemyColor $ circleSolid radius) <> texTT
+          where
+            texTT =  translate playerX (playerY + radius / 5) $ scale mult mult (color green (alignedCenterText textToPrint))
+              where
+                (textWidth,textHeight) = estimateTextWidth textToPrint
+                textToPrint = case enemyType of
+                      Indestructible -> "Inf"
+                      Destructible t -> show t
+                (playerX, playerY) = (x, y)
+                mult = radius / 100 / sqrt(fromIntegral (length textToPrint))
+
 
     -- Player rendering
     ball = case mainBall state of
@@ -338,8 +348,8 @@ handleKeys (EventKey (MouseButton LeftButton) Down _ (xPos, yPos)) state =
     newMainBall = case mainBall state of
       Nothing -> if hasAnyBallsLeft then Just spawnedBall else Nothing
       alreadyExistingBall -> alreadyExistingBall
-    
-  
+
+
     newMetaInfo =
       updateMetaInfoSounds [spawnSound] (metaInfo state)
       where
