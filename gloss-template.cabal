@@ -31,13 +31,14 @@ executable gloss-template
     -- Modules included in this executable, other than Main.
     -- other-modules:
     other-modules:
+      Game
       MapEditor
       Types
       Consts
-      MathUtils
-      Game
-      TextSizeAnalysis
+      Render
       Sounds
+      MathUtils
+      TextSizeAnalysis
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     if !flag(sound)

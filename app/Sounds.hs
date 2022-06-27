@@ -1,8 +1,8 @@
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use foldM" #-}
 {-# LANGUAGE CPP #-}
-module Sounds where
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
+module Sounds where
 
 #ifdef SoundEnabled
 import qualified SDL
@@ -10,9 +10,9 @@ import qualified SDL.Mixer  as Mix
 import           Data.Default.Class (def)
 import SDL.Mixer (Chunk)
 #endif
-import Types(MetaInfo ( soundRequestList, soundList),SoundList)
+import Types (MetaInfo (soundList, soundRequestList), SoundList)
 
-initSounds :: IO()
+initSounds :: IO ()
 initSounds = do
 # ifdef SoundEnabled
   SDL.initialize [SDL.InitAudio]
@@ -23,7 +23,7 @@ initSounds = do
 # endif
   return ()
 
-closeSounds :: IO()
+closeSounds :: IO ()
 closeSounds = do
 # ifdef SoundEnabled
   -- close device
@@ -35,20 +35,19 @@ closeSounds = do
 # endif
   return ()
 
-
 playRequestedSounds :: MetaInfo -> IO MetaInfo
 playRequestedSounds metaInfo = do
-  newSoundList <- playAllSounds (soundList metaInfo) (soundRequestList metaInfo )
-  return (metaInfo {soundList = newSoundList}{soundRequestList  = []})
- 
+  newSoundList <- playAllSounds (soundList metaInfo) (soundRequestList metaInfo)
+  return (metaInfo {soundList = newSoundList} {soundRequestList = []})
 
 playAllSounds :: SoundList -> [String] -> IO SoundList
 playAllSounds soundList [] = return soundList
-playAllSounds soundList (soundName:others) = do
+playAllSounds soundList (soundName : others) = do
+
 #   ifdef SoundEnabled
     newSoundList <- case lookup soundName soundList of
       Nothing-> do
-          sound <- Mix.load ("sounds/"++soundName++".mp3") --- case lookup sound soundList of 
+          sound <- Mix.load ("sounds/"++soundName++".mp3") --- case lookup sound soundList of
           Mix.play sound
           return $(soundName,sound) : soundList
       Just sound -> do

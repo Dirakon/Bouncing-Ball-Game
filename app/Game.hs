@@ -11,14 +11,13 @@ import Graphics.Gloss.Data.ViewPort
 import Graphics.Gloss.Geometry.Angle (radToDeg)
 import Graphics.Gloss.Interface.IO.Game
 import MathUtils
-import Types (Coords, EnemyBallType (..), EnemyPeg (..), MapInfo (..), PlayerBall (..), Position, Restitution, Speed, Sprites (cannonSprite), Velocity, MetaInfo (..))
+import Render (renderEnemies, renderMap, renderPlayer)
 import TextSizeAnalysis (alignedCenterText, estimateTextWidth)
-
+import Types (Coords, EnemyBallType (..), EnemyPeg (..), MapInfo (..), MetaInfo (..), PlayerBall (..), Position, Restitution, Speed, Sprites (cannonSprite), Velocity)
 
 -- | A data structure to hold the state of the game.
 data GameState = Game
-  {
-    mainBall :: Maybe PlayerBall,
+  { mainBall :: Maybe PlayerBall,
     ballsLeft :: Int,
     userMousePosition :: Position,
     mapInfo :: MapInfo,
@@ -49,10 +48,10 @@ render ::
   GameState -> -- The game state to render.
   Picture -- A picture of this game state.
 render state =
-  ballTrajectory <> ball <> pictures allEnemyBalls <> cannonPicture <> textPicture <> wallsPicture
+  ballTrajectory <> ball <> allEnemyBalls <> cannonPicture <> textPicture <> mapPicture
   where
     -- Text rendering
-    textPicture = translate 0  (- fromIntegral height / 2 + 20) (scale 0.2 0.2 (color green (alignedCenterText textToPrint)))
+    textPicture = translate 0 (- fromIntegral height / 2 + 20) (scale 0.2 0.2 (color green (alignedCenterText textToPrint)))
     textToPrint
       | Game.allDestroyableBallsAreDestroyed state = "You won! Press enter to visit the next level."
       | lives > 0 = "Balls left: " ++ show lives ++ " (press space to edit the level)"
@@ -66,68 +65,32 @@ render state =
       where
         sign = if snd directionFromCannonToMouse > 0 then (-1) else 1
 
-    wallsPicture = leftWall <> rightWall <> ceiling
-      where
-        leftWall = translate (curLeftX - wallWidth) (curFloorY + wallHeight / 2) $
-          color wallColor $ rectangleSolid wallWidth wallHeight
-        rightWall = translate (curRightX + wallWidth) (curFloorY + wallHeight / 2) $
-          color wallColor $ rectangleSolid wallWidth wallHeight
-        ceiling = translate 0 (curCeilingY + ceilWidth) $
-          color wallColor $ rectangleSolid ceilLength ceilWidth
-        curLeftX = leftWallX currentMapInfo
-        curRightX = rightWallX currentMapInfo
-        curFloorY = floorY currentMapInfo
-        curCeilingY = ceilingY currentMapInfo
-        currentMapInfo = mapInfo state
-        wallWidth = 30
-        ceilWidth = 30
-        wallHeight = curCeilingY - curFloorY + ceilWidth
-        ceilLength = curRightX - curLeftX + 3 * wallWidth
+    mapPicture = renderMap mapData
 
     -- Enemy balls rendering
-    allEnemyBalls = map drawEnemyBall (enemyBalls mapData)
-      where
-        drawEnemyBall :: EnemyPeg -> Picture
-        drawEnemyBall (EnemyPeg (x, y) radius enemyType) = translate x y (color enemyColor $ circleSolid radius) <> texTT
-          where
-            texTT =  translate playerX (playerY + radius / 5) $ scale mult mult (color green (alignedCenterText textToPrint))
-              where
-                (textWidth,textHeight) = estimateTextWidth textToPrint
-                textToPrint = case enemyType of
-                      Indestructible -> "Inf"
-                      Destructible t -> show t
-                (playerX, playerY) = (x, y)
-                mult = radius / 100 / sqrt(fromIntegral (length textToPrint))
-
+    allEnemyBalls = renderEnemies (enemyBalls mapData)
 
     -- Player rendering
-    ball = case mainBall state of
-      Nothing -> blank
-      Just (PlayerBall (x, y) _ _ _ radius) -> translate x y $ color ballColor $ circleSolid radius
-    ballColor = dark white
-
-    -- | Enemy color
-    enemyColor = dark red
-
+    ball = maybe blank renderPlayer (mainBall state)
 
     -- Ball trajectory rendering
-    ballTrajectory = if playerBallIsDeployed
-      then
-        blank
-      else
-        color
-          yellow
-          ( Line
-              ( simulatedBallTrajectory
-                  mapData
-                  currentCannonPosition
-                  directionFromCannonToMouse
-                  startPlayerSpeed
-                  (1 / fromIntegral fps)
-              )
-          )
+    ballTrajectory =
+      if playerBallIsDeployed
+        then blank
+        else
+          color
+            yellow
+            ( Line
+                ( simulatedBallTrajectory
+                    mapData
+                    currentCannonPosition
+                    directionFromCannonToMouse
+                    startPlayerSpeed
+                    (1 / fromIntegral fps)
+                )
+            )
 
-    mapData = mapInfo  state
+    mapData = mapInfo state
     lives = ballsLeft state
     playerBallIsDeployed = case mainBall state of
       Nothing -> False
@@ -191,21 +154,21 @@ moveAndCollide ballPosition@(x, y) dt dir startSpeed radius mapData = (newPoint,
 
 moveAndBounceBall :: PlayerBall -> Float -> GameState -> GameState
 moveAndBounceBall
-  playerBall@(PlayerBall playerPos@(x,y) playerDir@(oldDirX,oldDirY) playerRestitution speed playerRadius)
+  playerBall@(PlayerBall playerPos@(x, y) playerDir@(oldDirX, oldDirY) playerRestitution speed playerRadius)
   seconds
   state =
-    state {mainBall = movedPlayerBall}  {mapInfo = newMapInfo} {ballsLeft = newBallsLeft} {metaInfo = newMetaInfo}
+    state {mainBall = movedPlayerBall} {mapInfo = newMapInfo} {ballsLeft = newBallsLeft} {metaInfo = newMetaInfo}
     where
       -- Decrease balls lefts if ball dies this frame
       newBallsLeft = case movedPlayerBall of
-        Nothing ->  ballsLeft state - 1
+        Nothing -> ballsLeft state - 1
         _ -> ballsLeft state
 
       newMetaInfo =
         updateMetaInfoSounds [bumpSound] (metaInfo state)
         where
           bumpSound =
-            if or [collidedWithEnemyBall,collidedWithLeftWall,collidedWithRightWall,collidedWithCeiling]
+            if or [collidedWithEnemyBall, collidedWithLeftWall, collidedWithRightWall, collidedWithCeiling]
               then Just "bump"
               else Nothing
 
@@ -232,7 +195,6 @@ moveAndBounceBall
           then Just (PlayerBall newPos nextDir playerRestitution newSpeed playerRadius)
           else Nothing
       alive = not collidedWithFloor
-
 
       -- Change current direction on collision
       curDirX
@@ -335,12 +297,9 @@ getCollidingBalls
 
 -- | Respond to key events.
 handleKeys :: Event -> GameState -> GameState
-
-
 -- Restart game on 's' entered
 handleKeys (EventKey (Char 's') Down _ _) state =
   initialStateFrom (initialMap state) (updateMetaInfoSounds [Just "reset_level"] (metaInfo state))
-
 -- Spawn ball on mouse click (if has balls left and ball is not deployed yet)
 handleKeys (EventKey (MouseButton LeftButton) Down _ (xPos, yPos)) state =
   state {mainBall = newMainBall} {metaInfo = newMetaInfo}
@@ -349,11 +308,10 @@ handleKeys (EventKey (MouseButton LeftButton) Down _ (xPos, yPos)) state =
       Nothing -> if hasAnyBallsLeft then Just spawnedBall else Nothing
       alreadyExistingBall -> alreadyExistingBall
 
-
     newMetaInfo =
       updateMetaInfoSounds [spawnSound] (metaInfo state)
       where
-        spawnSound  =
+        spawnSound =
           if not ballIsAlreadyPlaced && hasAnyBallsLeft
             then Just "ball_spawn"
             else Nothing
@@ -363,7 +321,7 @@ handleKeys (EventKey (MouseButton LeftButton) Down _ (xPos, yPos)) state =
       _ -> True
     hasAnyBallsLeft = ballsLeft state > 0
     spawnedBall = PlayerBall cannonCoords ballVelocity startPlayerRestitution startPlayerSpeed startPlayerRadius
-    cannonCoords = cannonPosition (mapInfo  state)
+    cannonCoords = cannonPosition (mapInfo state)
     mouseCoords = (xPos, yPos)
     ballVelocity = normalizeV ballDirection
     ballDirection = vectorDiff mouseCoords cannonCoords
@@ -371,25 +329,21 @@ handleKeys (EventKey (MouseButton LeftButton) Down _ (xPos, yPos)) state =
 -- Update mouse position in meta info
 handleKeys (EventMotion (xPos, yPos)) state =
   state {userMousePosition = (xPos, yPos)}
-
 -- Do nothing for all other events.
 handleKeys _ game = game
 
-
-updateMetaInfoSounds::[Maybe String]->MetaInfo->MetaInfo
+updateMetaInfoSounds :: [Maybe String] -> MetaInfo -> MetaInfo
 updateMetaInfoSounds [] metaInfo = metaInfo
-updateMetaInfoSounds (maybeString:others) oldMetaInfo  =
-        oldMetaInfo{soundRequestList = newSoundRequests}
-        where
-          oldSoundRequests = soundRequestList oldMetaInfo
-          newSoundRequests =
-            oldSoundRequests ++ soundRequestAdditions
-          soundRequestAdditions = maybeToList maybeString
+updateMetaInfoSounds (maybeString : others) oldMetaInfo =
+  oldMetaInfo {soundRequestList = newSoundRequests}
+  where
+    oldSoundRequests = soundRequestList oldMetaInfo
+    newSoundRequests =
+      oldSoundRequests ++ soundRequestAdditions
+    soundRequestAdditions = maybeToList maybeString
 
-
-
-allDestroyableBallsAreDestroyed:: GameState -> Bool
-allDestroyableBallsAreDestroyed state = not (any isDestructible (enemyBalls (mapInfo  state)))
+allDestroyableBallsAreDestroyed :: GameState -> Bool
+allDestroyableBallsAreDestroyed state = not (any isDestructible (enemyBalls (mapInfo state)))
   where
     isDestructible (EnemyPeg _ _ Indestructible) = False
     isDestructible _ = True
