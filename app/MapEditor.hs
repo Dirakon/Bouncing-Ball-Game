@@ -102,7 +102,7 @@ handleKeys (EventKey (MouseButton LeftButton) Down _ _) state =
 -- | Change on Wheel Up:
 -- | * Size without Shift
 -- | * Durability with Shift
-handleKeys (EventKey (MouseButton WheelUp) _ modif _) state =
+handleKeys (EventKey (MouseButton WheelUp) Down modif _) state =
   state
     { currentBall = newCurrentBall
     }
@@ -116,7 +116,7 @@ handleKeys (EventKey (MouseButton WheelUp) _ modif _) state =
 -- | Change on Wheel Down:
 -- | * Size without Shift
 -- | * Durability with Shift
-handleKeys (EventKey (MouseButton WheelDown) _ modif _) state =
+handleKeys (EventKey (MouseButton WheelDown) Down modif _) state =
   state
     { currentBall = newCurrentBall
     }
