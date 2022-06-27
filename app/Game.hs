@@ -54,7 +54,7 @@ render state =
     -- Text rendering
     textPicture = translate 0  (- fromIntegral height / 2 + 20) (scale 0.2 0.2 (color green (alignedCenterText textToPrint)))
     textToPrint
-      | noEnemyBallsLeft = "You won! Press enter to visit the next level."
+      | Game.allDestroyableBallsAreDestroyed state = "You won! Press enter to visit the next level."
       | lives > 0 = "Balls left: " ++ show lives ++ " (press space to edit the level)"
       | otherwise = "You lost... Press 's' to restart..."
 
@@ -385,3 +385,11 @@ updateMetaInfoSounds (maybeString:others) oldMetaInfo  =
           newSoundRequests =
             oldSoundRequests ++ soundRequestAdditions
           soundRequestAdditions = maybeToList maybeString
+
+
+
+allDestroyableBallsAreDestroyed:: GameState -> Bool
+allDestroyableBallsAreDestroyed state = not (any isDestructible (enemyBalls (mapInfo  state)))
+  where
+    isDestructible (EnemyPeg _ _ Indestructible) = False
+    isDestructible _ = True

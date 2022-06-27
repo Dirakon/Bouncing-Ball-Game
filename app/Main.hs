@@ -82,7 +82,7 @@ main = do
     -- Go to next level in play mode on 'enter' being pressed with no balls on the map
     handleKeys (EventKey (SpecialKey KeyEnter) Down _ _) oldState@(GameOn gameState) = do
      -- setTextSizes
-      if noEnemyBallsLeft
+      if Game.allDestroyableBallsAreDestroyed gameState
         then do
           nextLevel <- loadLevel (getLevelPath (currentLevel metaInfo + 1))
           return (newState nextLevel gameState)
@@ -114,6 +114,6 @@ main = do
     update dt (GameOn gameState) =do
       newMetaInfo <- playRequestedSounds $ Game.metaInfo gameState
       return(GameOn (Game.update dt gameState{Game.metaInfo = newMetaInfo}))
-  
+
 getLevelPath :: Int -> FilePath
 getLevelPath levelIndex = "levels/level" ++ show levelIndex
