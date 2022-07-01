@@ -106,7 +106,7 @@ render state =
 simulatedBallTrajectory :: MapInfo -> Position -> Vector -> Float -> Float -> [Point]
 simulatedBallTrajectory mapData startPosition@(x, y) dir@(dirX, dirY) startSpeed simulationDt =
   if collidedWithAnything
-    then []
+    then [newPoint]
     else newPoint : simulatedBallTrajectory mapData newPoint nextDir newSpeed simulationDt
   where
     collidedWithAnything = case collisionData of
@@ -146,7 +146,7 @@ moveAndCollide ballPosition@(x, y) dt dir startSpeed radius mapData = (newPoint,
         Nothing -> (Nothing, predictedNextPoint)
         Just (collision, collisionPoint) -> (Just (collision, calculateDtLeft collisionPoint), collisionPoint)
       where
-        calculateDtLeft (x', y') = dt * (distanceBetween (x,y) (x',y') / distanceBetween (x,y) predictedNextPoint)
+        calculateDtLeft (x', y') = dt * (distanceBetween (x, y) (x', y') / distanceBetween (x, y) predictedNextPoint)
         compareByDistanceToPlayerStart (_, p1) (_, p2)
           | distanceBetween ballPosition p1 > distanceBetween ballPosition p2 = GT
           | otherwise = LT
