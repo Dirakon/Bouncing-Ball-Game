@@ -18,7 +18,7 @@ For installation, you will need [Cabal tool](https://www.haskell.org/cabal/), [S
 Alternatively, if you have a problem with installing either SDL or SDL_mixer, you could manually disable sounds:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;You will need to go to `*.cabal` file in the project, and set `sound` flag to False as default
 
-Then, do<br>
+Do the following:<br>
 <pre>git clone https://github.com/Dirakon/Bouncing-Ball-Game.git<br>
 cd Bouncing-Ball-Game<br>
 cabal build<br>
@@ -32,3 +32,4 @@ In editor mode, use mouse wheel to change size of the ball, right-click to place
 The usage of SDL2_mixer is based on [this example](https://gitlab.homotopic.tech/haskell/sdl2-mixer/-/blob/master/examples/Basic/Main.hs). <br>
 The usage of Gloss is based on [this post](https://andrew.gibiansky.com/blog/haskell/haskell-gloss/). <br>
 The usage of C pre-processor is based on [this thread](https://stackoverflow.com/questions/6361846/where-can-i-learn-about-ifdef). <br>
+Segment-circle intersection algorithm is based on [this code example](https://rosettacode.org/wiki/Line_circle_intersection#Haskell). <br>
