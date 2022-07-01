@@ -26,7 +26,7 @@ startPlayerRestitution :: Restitution
 startPlayerRestitution = 6
 
 startPlayerSpeed :: Speed
-startPlayerSpeed = 300
+startPlayerSpeed = 450
 
 startPlayerRadius :: Float
 startPlayerRadius = 10
@@ -34,3 +34,6 @@ startPlayerRadius = 10
 -- | Global simulation settings | --
 gravity :: Vector
 gravity = (0, -6)
+
+playerOtsckokCoefficient :: Float
+playerOtsckokCoefficient = 0.05

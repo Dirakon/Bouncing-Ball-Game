@@ -3,6 +3,7 @@ module Game where
 import Consts
 import Data.Bool (bool)
 import Data.ByteString (ByteString, pack)
+import Data.Foldable (minimumBy)
 import Data.Maybe
 import Data.Word
 import Graphics.Gloss
@@ -58,7 +59,7 @@ render state =
       | otherwise = "You lost... Press 's' to restart..."
 
     -- Cannon rendering
-    cannonPicture = translate cannonX cannonY (rotate cannonRotation (cannonSprite (sprites $metaInfo state)))
+    cannonPicture = translate cannonX cannonY (rotate cannonRotation (cannonSprite (sprites $ metaInfo state)))
     (cannonX, cannonY) = cannonPosition mapData
     cannonRotation =
       sign * radToDeg (angleVV (1, 0) directionFromCannonToMouse) - 90
@@ -108,57 +109,109 @@ simulatedBallTrajectory mapData startPosition@(x, y) dir@(dirX, dirY) startSpeed
     then []
     else newPoint : simulatedBallTrajectory mapData newPoint nextDir newSpeed simulationDt
   where
-    collidedWithAnything = or [collidedWithCeiling, collidedWithFloor, collidedWithLeftWall, collidedWithRightWall, collidedWithEnemyBalls]
-
-    collidedWithEnemyBalls = case listToMaybe enemyCollisions of
+    collidedWithAnything = case collisionData of
       Nothing -> False
       _ -> True
 
     (newPoint, nextDir, newSpeed, collisionData) = moveAndCollide startPosition simulationDt dir startSpeed 1 mapData
-    (CollisionInfo collidedWithCeiling collidedWithRightWall collidedWithFloor collidedWithLeftWall enemyCollisions) =
-      collisionData
 
-data CollisionInfo = CollisionInfo
-  { collidedWithCeiling :: Bool,
-    collidedWithRightWall :: Bool,
-    collidedWithFloor :: Bool,
-    collidedWithLeftWall :: Bool,
-    collidedEnemyBalls :: [EnemyPeg]
-  }
+type CollisionInfo = Maybe (SomeCollision, Float)
+
+data SomeCollision
+  = EnemyCollision EnemyPeg
+  | RightWallCollision
+  | LeftWallCollision
+  | FloorCollision
+  | CeilingCollision
 
 moveAndCollide :: Position -> Float -> Vector -> Float -> Float -> MapInfo -> (Vector, Vector, Float, CollisionInfo)
 moveAndCollide ballPosition@(x, y) dt dir startSpeed radius mapData = (newPoint, nextDir, newSpeed, collisionData)
   where
-    collisionData =
-      CollisionInfo
-        { collidedWithCeiling = y >= ceilingY mapData,
-          collidedWithRightWall = x >= rightWallX mapData,
-          collidedWithFloor = y <= floorY mapData,
-          collidedWithLeftWall = x <= leftWallX mapData,
-          collidedEnemyBalls = collidingEnemies
-        }
-
     -- New direction and speed
     normalizedDir = normalizeV dir
-    (movX, movY) = applyGravity (mulSV startSpeed normalizedDir)
-    applyGravity vec = vectorSum [vec, gravity]
+    (movX, movY) = vectorSum [(mulSV startSpeed normalizedDir), gravity]
+    --applyGravity vec = vectorSum [vec, gravity]
     nextDir = normalizeV (movX, movY)
     newSpeed = magV (movX, movY)
 
     -- New locations
     x' = x + (dt * movX)
     y' = y + (dt * movY)
-    newPoint = (x', y')
+    predictedNextPoint = (x', y')
 
-    collidingEnemies = getCollidingBalls ballPosition (enemyBalls mapData) radius
+    movementStart = ballPosition
+
+    (collisionData, newPoint) =
+      case minimumByTotal compareByDistanceToPlayerStart allCollisions of
+        Nothing -> (Nothing, predictedNextPoint)
+        Just (collision, collisionPoint) -> (Just (collision, calculateDtLeft collisionPoint), collisionPoint)
+      where
+        calculateDtLeft (x', y') = dt * (distanceBetween (x,y) (x',y') / distanceBetween (x,y) predictedNextPoint)
+        compareByDistanceToPlayerStart (_, p1) (_, p2)
+          | distanceBetween ballPosition p1 > distanceBetween ballPosition p2 = GT
+          | otherwise = LT
+
+    allCollisions = catMaybes [collisionWithFloor, collisionWithCeiling, collisionWithLeftWall, collisionWithRightWall, collisionWithEnemy]
+      where
+        collisionWithFloor =
+          case segmentHorizontalLineIntersection movementStart predictedNextPoint (radius + floorY mapData) of
+            Nothing -> Nothing
+            Just collisionPoint ->
+              if alreadyColliding
+                then Nothing
+                else Just (FloorCollision, collisionPoint)
+              where
+                alreadyColliding = y <= radius + floorY mapData
+        collisionWithCeiling =
+          case segmentHorizontalLineIntersection movementStart predictedNextPoint (- radius + ceilingY mapData) of
+            Nothing -> Nothing
+            Just collisionPoint ->
+              if alreadyColliding
+                then Nothing
+                else Just (CeilingCollision, collisionPoint)
+              where
+                alreadyColliding = y >= - radius + ceilingY mapData
+        collisionWithLeftWall =
+          case segmentVerticalLineIntersection movementStart predictedNextPoint (radius + leftWallX mapData) of
+            Nothing -> Nothing
+            Just collisionPoint ->
+              if alreadyColliding
+                then Nothing
+                else Just (LeftWallCollision, collisionPoint)
+              where
+                alreadyColliding = x <= radius + leftWallX mapData
+        collisionWithRightWall =
+          case segmentVerticalLineIntersection movementStart predictedNextPoint (- radius + rightWallX mapData) of
+            Nothing -> Nothing
+            Just collisionPoint ->
+              if alreadyColliding
+                then Nothing
+                else Just (RightWallCollision, collisionPoint)
+              where
+                alreadyColliding = x >= - radius + rightWallX mapData
+        collisionWithEnemy =
+          case getFirstEnemyIntersection movementStart predictedNextPoint (enemyBalls mapData) radius of
+            Nothing -> Nothing
+            Just (enemy, collisionPoint) ->
+              if alreadyColliding
+                then Nothing
+                else Just (EnemyCollision enemy, vectorSum [mulSV (- playerOtsckokCoefficient) normalizedDir, collisionPoint])
+              where
+                alreadyColliding = distanceBetween (enemyPosition enemy) movementStart <= enemyRadius enemy + radius
 
 moveAndBounceBall :: PlayerBall -> Float -> GameState -> GameState
 moveAndBounceBall
   playerBall@(PlayerBall playerPos@(x, y) playerDir@(oldDirX, oldDirY) playerRestitution speed playerRadius)
   seconds
   state =
-    state {mainBall = movedPlayerBall} {mapInfo = newMapInfo} {ballsLeft = newBallsLeft} {metaInfo = newMetaInfo}
+    if dtLeft <= 0
+      then newState
+      else case movedPlayerBall of
+        Nothing -> newState
+        Just ball -> moveAndBounceBall ball dtLeft newState
     where
+      newState = state {mainBall = movedPlayerBall} {mapInfo = newMapInfo} {ballsLeft = newBallsLeft} {metaInfo = newMetaInfo}
+
       -- Decrease balls lefts if ball dies this frame
       newBallsLeft = case movedPlayerBall of
         Nothing -> ballsLeft state - 1
@@ -168,9 +221,10 @@ moveAndBounceBall
         updateMetaInfoSounds [bumpSound] (metaInfo state)
         where
           bumpSound =
-            if or [collidedWithEnemyBall, collidedWithLeftWall, collidedWithRightWall, collidedWithCeiling]
-              then Just "bump"
-              else Nothing
+            case collisionData of
+              Nothing -> Nothing
+              Just (FloorCollision, _) -> Nothing
+              _ -> Just "bump"
 
       -- Update map
       newMapInfo = oldMapInfo {enemyBalls = newEnemyBalls}
@@ -178,10 +232,13 @@ moveAndBounceBall
           oldMapInfo = mapInfo state
 
       -- Destroy colliding enemy balls
-      newEnemyBalls = filter (not . wastedDurability) (map decreaseDurabilityOnCollidingEnemies (enemyBalls (mapInfo state)))
-      decreaseDurabilityOnCollidingEnemies enemy = case ballType enemy of
+      newEnemyBalls = case collisionData of
+        Just (EnemyCollision enemy, _) ->
+          filter (not . wastedDurability) (map (decreaseDurabilityOnCollidingEnemies enemy) (enemyBalls (mapInfo state)))
+        _ -> enemyBalls (mapInfo state)
+      decreaseDurabilityOnCollidingEnemies collidedEnemy enemy = case ballType enemy of
         Destructible durability ->
-          if enemy `elem` collidingEnemies
+          if enemy == collidedEnemy
             then enemy {ballType = Destructible (durability - 1)}
             else enemy
         _ -> enemy
@@ -194,42 +251,34 @@ moveAndBounceBall
         if alive
           then Just (PlayerBall newPos nextDir playerRestitution newSpeed playerRadius)
           else Nothing
-      alive = not collidedWithFloor
-
-      -- Change current direction on collision
-      curDirX
-        | collidedWithEnemyBall = fst velocityBouncedOnEnemies
-        | collidedWithLeftWall = abs oldDirX
-        | collidedWithRightWall = - abs oldDirX
-        | otherwise = oldDirX
-      curDirY
-        | collidedWithEnemyBall = snd velocityBouncedOnEnemies
-        | collidedWithCeiling = - abs oldDirY
-        | otherwise = oldDirY
-
-      -- Get collision info and updated directions and speed
-      (CollisionInfo collidedWithCeiling collidedWithRightWall collidedWithFloor collidedWithLeftWall collidingEnemies) =
-        collisionData
-      (newPos, nextDir, newSpeed, collisionData) = moveAndCollide playerPos seconds (curDirX, curDirY) speed playerRadius (mapInfo state)
-
-      -- Collision with enemy balls
-      velocityBouncedOnEnemies = playerVelocityOnEnemyCollision playerBall collidingEnemies
-      collidedWithEnemyBall = case listToMaybe collidingEnemies of
-        Nothing -> False
+      alive = case collisionData of
+        Just (FloorCollision, _) -> False
         _ -> True
 
--- Change player velocity when colliding with enemy pegs
-playerVelocityOnEnemyCollision :: PlayerBall -> [EnemyPeg] -> Vector
+      -- Change current direction on collision
+
+      nextDir = case collisionData of
+        Nothing -> (curDirX, curDirY)
+        Just (EnemyCollision enemy, _) -> playerVelocityOnEnemyCollision playerBall (curDirX, curDirY) enemy
+        Just (RightWallCollision, _) -> (- abs curDirX, curDirY)
+        Just (LeftWallCollision, _) -> (abs curDirX, curDirY)
+        Just (CeilingCollision, _) -> (curDirX, - abs curDirY)
+        Just (FloorCollision, _) -> (curDirX, curDirY)
+
+      -- Get collision info and updated directions and speed
+      (newPos, (curDirX, curDirY), newSpeed, collisionData) = moveAndCollide playerPos seconds (oldDirX, oldDirY) speed playerRadius (mapInfo state)
+      dtLeft = case collisionData of
+        Nothing -> 0
+        Just (_, dt') -> dt'
+
+-- Change player velocity when colliding with one enemy peg
+playerVelocityOnEnemyCollision :: PlayerBall -> Vector -> EnemyPeg -> Vector
 playerVelocityOnEnemyCollision
-  playerBall@(PlayerBall playerPos@(playerX, playerY) playerVel@(oldVx, oldVy) playerRestitution speed playerRadius)
-  collidingEnemies =
-    vectorSum (getNewVectorsFromArray collidingEnemies)
+  playerBall@(PlayerBall playerPos@(playerX, playerY) _ playerRestitution speed playerRadius)
+  (oldVx, oldVy)
+  enemyPeg@(EnemyPeg position enemyRadius _) =
+    getNewVec position (getCollisionPoint playerPos playerRadius position enemyRadius) (oldVx, oldVy)
     where
-      getNewVectorsFromArray :: [EnemyPeg] -> [Coords]
-      getNewVectorsFromArray [] = []
-      getNewVectorsFromArray ((EnemyPeg position enemyRadius _) : js) =
-        getNewVec position (getCollisionPoint playerPos playerRadius position enemyRadius) (oldVx, oldVy) :
-        getNewVectorsFromArray js
       getCollisionPoint ::
         Coords ->
         -- Player position
@@ -280,20 +329,23 @@ playerVelocityOnEnemyCollision
             y = 2 * h - f - b -- new vector, y axis
             resultVector = (x, y)
 
--- Get all enemy pegs colliding with the player
-getCollidingBalls :: Velocity -> [EnemyPeg] -> Float -> [EnemyPeg]
-getCollidingBalls
-  (playerX, playerY)
+-- Get first enemy peg intersecting with the player
+getFirstEnemyIntersection :: Position -> Position -> [EnemyPeg] -> Float -> Maybe (EnemyPeg, Position)
+getFirstEnemyIntersection
+  playerStart
+  playerEnd
   enemyBalls
   playerRadius =
-    filter collidingWith enemyBalls
+    minimumByTotal compareByDistanceToPlayerStart (concatMap getCollisionPosition enemyBalls)
     where
-      collidingWith :: EnemyPeg -> Bool
-      collidingWith (EnemyPeg enemyPosition enemyRadius _) =
-        distanceFromEnemyCenter <= playerRadius + enemyRadius
-        where
-          (i, j) = enemyPosition
-          distanceFromEnemyCenter = sqrt ((i - playerX) ^ 2 + (j - playerY) ^ 2)
+      compareByDistanceToPlayerStart (_, p1) (_, p2)
+        | distanceBetween playerStart p1 > distanceBetween playerStart p2 = GT
+        | otherwise = LT
+
+      getCollisionPosition enemy@(EnemyPeg enemyPosition enemyRadius _) =
+        case segmentCircleFirstIntersection playerStart playerEnd (enemyPosition, enemyRadius + playerRadius) of
+          Nothing -> []
+          Just collisionPoint -> [(enemy, collisionPoint)]
 
 -- | Respond to key events.
 handleKeys :: Event -> GameState -> GameState

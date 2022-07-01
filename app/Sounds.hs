@@ -10,6 +10,9 @@ import qualified SDL.Mixer  as Mix
 import           Data.Default.Class (def)
 import SDL.Mixer (Chunk)
 #endif
+
+import Control.Exception (Exception, SomeException, try)
+import GHC.Base (IO (IO))
 import Types (MetaInfo (soundList, soundRequestList), SoundList)
 
 initSounds :: IO ()
@@ -47,11 +50,11 @@ playAllSounds soundList (soundName : others) = do
 #   ifdef SoundEnabled
     newSoundList <- case lookup soundName soundList of
       Nothing-> do
-          sound <- Mix.load ("sounds/"++soundName++".mp3") --- case lookup sound soundList of
-          Mix.play sound
+          sound <- Mix.load ("sounds/"++soundName++".mp3")
+          try $Mix.play sound :: IO (Either SomeException ())
           return $(soundName,sound) : soundList
       Just sound -> do
-          Mix.play sound
+          try $Mix.play sound :: IO (Either SomeException ())
           return soundList
     playAllSounds newSoundList others
 #   else
