@@ -31,9 +31,12 @@ startPlayerSpeed = 450
 startPlayerRadius :: Float
 startPlayerRadius = 10
 
--- | Global simulation settings | --
+-- | Simulation settings | --
 gravity :: Vector
 gravity = (0, -6)
 
 playerOtsckokCoefficient :: Float
 playerOtsckokCoefficient = 0.05
+
+playerVelocityLoseCoefficient :: Float
+playerVelocityLoseCoefficient = 0.05

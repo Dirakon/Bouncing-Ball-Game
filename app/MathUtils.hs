@@ -19,11 +19,12 @@ vectorSum vectors = (sum (map getI vectors), sum (map getJ vectors))
 vectorDiff :: Vector -> Vector -> Vector
 vectorDiff vec1 vec2 = (fst vec1 - fst vec2, snd vec1 - snd vec2)
 
-
+-- | Total version of minimumBy function 
 minimumByTotal :: (a -> a -> Ordering) -> [a] ->  Maybe a
 minimumByTotal  f [] = Nothing
 minimumByTotal  f list = Just (minimumBy f list)
 
+-- | Total version of maximumBy function 
 maximumByTotal :: (a -> a -> Ordering) -> [a] ->  Maybe a
 maximumByTotal f [] = Nothing
 maximumByTotal f list = Just (maximumBy f list)
