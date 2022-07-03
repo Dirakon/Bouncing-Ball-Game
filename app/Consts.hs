@@ -33,10 +33,14 @@ startPlayerRadius = 10
 
 -- | Simulation settings | --
 gravity :: Vector
-gravity = (0, -6)
+gravity = (0, -6) --(0.-6)
 
 playerOtsckokCoefficient :: Float
-playerOtsckokCoefficient = 0.05
+playerOtsckokCoefficient = 1
 
 playerVelocityLoseCoefficient :: Float
 playerVelocityLoseCoefficient = 0.05
+
+
+nonMovingPlayerThreshold :: Float
+nonMovingPlayerThreshold = 1

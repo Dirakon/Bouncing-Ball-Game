@@ -9,20 +9,20 @@ renderMap :: MapInfo -> Picture
 renderMap currentMapInfo = leftWall <> rightWall <> ceiling
   where
     leftWall =
-      translate (curLeftX - wallWidth) (curFloorY + wallHeight / 2) $
+      translate (curLeftX - wallWidth / 2) (curFloorY + wallHeight / 2) $
         color wallColor $ rectangleSolid wallWidth wallHeight
     rightWall =
-      translate (curRightX + wallWidth) (curFloorY + wallHeight / 2) $
+      translate (curRightX + wallWidth / 2) (curFloorY + wallHeight / 2) $
         color wallColor $ rectangleSolid wallWidth wallHeight
     ceiling =
-      translate 0 (curCeilingY + ceilWidth) $
+      translate 0 (curCeilingY + ceilWidth / 2) $
         color wallColor $ rectangleSolid ceilLength ceilWidth
     curLeftX = leftWallX currentMapInfo
     curRightX = rightWallX currentMapInfo
     curFloorY = floorY currentMapInfo
     curCeilingY = ceilingY currentMapInfo
-    wallWidth = 30
-    ceilWidth = 30
+    wallWidth = 45
+    ceilWidth = 45
     wallHeight = curCeilingY - curFloorY + ceilWidth
     ceilLength = curRightX - curLeftX + 3 * wallWidth
 

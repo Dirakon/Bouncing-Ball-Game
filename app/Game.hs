@@ -196,8 +196,9 @@ moveAndCollide ballPosition@(x, y) dt dir startSpeed radius mapData = (newPoint,
             Just (enemy, collisionPoint) ->
               if alreadyColliding
                 then Nothing
-                else Just (EnemyCollision enemy collisionPoint, vectorSum [mulSV (- playerOtsckokCoefficient) normalizedDir, collisionPoint])
+                else Just (EnemyCollision enemy onEnemyCollisionPoint, vectorSum [mulSV (- playerOtsckokCoefficient) normalizedDir, collisionPoint])
               where
+                onEnemyCollisionPoint = vectorSum [collisionPoint,mulSV radius $  normalizeV ( (enemyPosition enemy)`vectorDiff` collisionPoint) ]
                 alreadyColliding = distanceBetween (enemyPosition enemy) movementStart <= enemyRadius enemy + radius
 
 moveAndBounceBall :: PlayerBall -> Float -> GameState -> GameState
@@ -255,7 +256,7 @@ moveAndBounceBall
           else Nothing
       alive = case collisionData of
         Just (FloorCollision, _) -> False
-        _ -> True
+        _ -> newProcessedSpeed > nonMovingPlayerThreshold
 
       newProcessedSpeed = case collisionData of
         Nothing -> newSpeed
