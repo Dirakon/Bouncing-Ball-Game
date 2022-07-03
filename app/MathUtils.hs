@@ -1,8 +1,9 @@
+{-# OPTIONS_GHC -Wall -fno-warn-type-defaults #-}
 module MathUtils (distanceBetween,vectorSum, vectorDiff, segmentCircleFirstIntersection, segmentHorizontalLineIntersection, segmentVerticalLineIntersection,minimumByTotal,maximumByTotal) where
 
 import Graphics.Gloss
 import Types
-import Data.List (find, minimumBy, maximumBy)
+import Data.List (minimumBy, maximumBy)
 import Graphics.Gloss.Geometry.Line (intersectSegHorzLine, intersectSegVertLine)
 
 distanceBetween :: Point -> Point -> Float

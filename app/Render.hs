@@ -1,9 +1,26 @@
+{-# OPTIONS_GHC -Wall -fno-warn-type-defaults #-}
+
 module Render where
 
 import Consts
+import Data.Maybe (fromMaybe)
 import Graphics.Gloss
 import TextSizeAnalysis
 import Types
+
+safeFirstPicture :: [Maybe Picture] -> Picture
+safeFirstPicture [] = blank
+safeFirstPicture (x : xs) = fromMaybe blank x
+
+safeGetPictureById :: [Maybe Picture] -> Int -> Picture
+safeGetPictureById [] _ = blank
+safeGetPictureById arr index = iter (0, arr) index
+  where
+    iter (_, []) _ = blank
+    iter (i, x : xs) lookFor =
+      if lookFor == i
+        then Data.Maybe.fromMaybe blank x
+        else iter (i + 1, xs) lookFor
 
 renderMap :: MapInfo -> Picture
 renderMap currentMapInfo = leftWall <> rightWall <> ceiling
@@ -24,7 +41,7 @@ renderMap currentMapInfo = leftWall <> rightWall <> ceiling
     wallWidth = 45
     ceilWidth = 45
     wallHeight = curCeilingY - curFloorY + ceilWidth
-    ceilLength = curRightX - curLeftX + 3 * wallWidth
+    ceilLength = curRightX - curLeftX + wallWidth
 
 renderEnemies :: [EnemyPeg] -> Picture
 renderEnemies pegs = pictures (map drawEnemyBall pegs)
@@ -41,3 +58,9 @@ renderEnemies pegs = pictures (map drawEnemyBall pegs)
 
 renderPlayer :: PlayerBall -> Picture
 renderPlayer (PlayerBall (x, y) _ _ _ radius) = translate x y $ color playerBallColor $ circleSolid radius
+
+renderBackground :: MapInfo -> MetaInfo -> Picture
+renderBackground mapInfo metaInfo = mapBackground
+  where
+    mapBackground = safeGetPictureById mapBackgrounds $ backgroundPictureId mapInfo
+    mapBackgrounds = backgrounds $ sprites metaInfo

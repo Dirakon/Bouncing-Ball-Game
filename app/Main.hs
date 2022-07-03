@@ -1,6 +1,9 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_GHC -Wall -fno-warn-type-defaults #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use foldr" #-}
+{-# OPTIONS_GHC -Wno-unused-do-bind #-}
 
 module Main (main, MetaInfo) where
 
@@ -8,28 +11,26 @@ import Consts
 import Control.Monad (unless)
 import Data.Binary
 import Data.Binary.Get (ByteOffset)
-import Data.ByteString.Lazy as ByteStringLazy
+import Data.ByteString.Lazy as ByteStringLazy hiding (map)
 import Data.Maybe
+import DevUtils (updateMaps)
 import qualified Game
 import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Game
 import Graphics.Gloss.Juicy (loadJuicyPNG)
-import Graphics.UI.GLUT (Font (stringWidth), StrokeFont (Roman))
 import qualified MapEditor
 import Sounds
 import System.Directory (doesFileExist)
-import TextSizeAnalysis
 import Types
 
 window :: Display
 window = InWindow "Game" (width, height) (offset, offset)
 
-loadJuicyPNGS [] = []
-loadJuicyPNGS (x:xs) = [loadJuicyPNG x] ++ loadJuicyPNGS xs
+loadJuicyPNGS :: [FilePath] -> [IO (Maybe Picture)]
+loadJuicyPNGS = map loadJuicyPNG
 
-listFromIO x = sequence x
-
-
+listFromIO :: (Traversable t, Monad m) => t (m a) -> m (t a)
+listFromIO = sequence
 
 loadSprites :: IO Sprites
 loadSprites = do
@@ -67,7 +68,7 @@ main = do
   level <- loadLevel (getLevelPath initialLevelIndex)
   sprites <- loadSprites
 
-  let initialMetaInfo = MetaInfo initialLevelIndex [] [] sprites
+  let initialMetaInfo = MetaInfo initialLevelIndex [] [] (-1) (-1) sprites
 
   let initialFullState = GameOn (Game.initialStateFrom level initialMetaInfo (0, 0))
   playIO window black fps initialFullState render handleKeys update
@@ -75,19 +76,16 @@ main = do
   where
     -- Change mode on 'space' pressed
     handleKeys (EventKey (SpecialKey KeySpace) Down _ _) (GameOn gameState) = do
-      playAllSounds [] ["change_mode"]
-      return $ EditorOn (MapEditor.editorStateFrom (Game.initialMap gameState) (Game.metaInfo gameState) (sprites (Game.metaInfo gameState)) pngBackgrounds)
+      newMetaInfo <- playRequestedSounds $ addSoundToRequests "change_mode" (Game.metaInfo gameState)
+      let userMousePosition = Game.userMousePosition gameState
+      return $ EditorOn (MapEditor.editorStateFrom (Game.initialMap gameState) newMetaInfo pngBackgrounds userMousePosition) 
     handleKeys (EventKey (SpecialKey KeySpace) Down _ _) (EditorOn editorState) = do
-      playAllSounds [] ["change_mode"]
+      newMetaInfo <- playRequestedSounds $ addSoundToRequests "change_mode" (MapEditor.metaInfo editorState)
       let userMousePosition = MapEditor.userMousePosition editorState
-      saveLevel (getLevelPath (currentLevel metaInfo)) newMap
-      return $ GameOn (Game.initialStateFrom map metaInfo userMousePosition)
+      saveLevel (getLevelPath (currentLevel newMetaInfo)) map
+      return $ GameOn (Game.initialStateFrom map newMetaInfo userMousePosition)
       where
-        newMap = map {
-          backgroundId = MapEditor.currentBackgroundIndex editorState
-        }
-        map = MapEditor.mapInfo editorState 
-        metaInfo = MapEditor.metaInfo editorState
+        map = MapEditor.mapInfo editorState
 
     -- Go to next level in play mode on 'enter' being pressed with no balls on the map
     handleKeys (EventKey (SpecialKey KeyEnter) Down _ _) oldState@(GameOn gameState) = do
@@ -95,18 +93,14 @@ main = do
       if Game.allDestroyableBallsAreDestroyed gameState
         then do
           nextLevel <- loadLevel (getLevelPath (currentLevel metaInfo + 1))
-          return (newState nextLevel gameState)
+          return (newState nextLevel)
         else do
           return oldState
       where
         mouseCoords = Game.userMousePosition gameState
         metaInfo = Game.metaInfo gameState
-        newState nextLevel gameState =
+        newState nextLevel =
           GameOn (Game.initialStateFrom nextLevel (metaInfo {currentLevel = currentLevel metaInfo + 1}) mouseCoords)
-
-        noEnemyBallsLeft = case listToMaybe (enemyBalls (Game.mapInfo gameState)) of
-          Nothing -> True
-          _ -> False
 
     -- Choose handleKeys function depending on current mode
     handleKeys event (GameOn gameState) =
@@ -128,3 +122,7 @@ main = do
 
 getLevelPath :: Int -> FilePath
 getLevelPath levelIndex = "levels/level" ++ show levelIndex
+
+addSoundToRequests:: String -> MetaInfo -> MetaInfo
+addSoundToRequests sound metaInfo = 
+  metaInfo {soundRequestList = sound : soundRequestList metaInfo}

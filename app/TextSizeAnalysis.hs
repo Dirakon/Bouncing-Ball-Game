@@ -1,7 +1,8 @@
+{-# OPTIONS_GHC -Wall -fno-warn-type-defaults #-}
+
 module TextSizeAnalysis where
 
 import Data.Maybe (fromMaybe)
-import qualified Data.Maybe
 import Graphics.Gloss (Picture (Text), translate)
 import Graphics.UI.GLUT.Fonts (Font (stringWidth), StrokeFont (Roman))
 
