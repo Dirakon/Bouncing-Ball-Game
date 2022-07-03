@@ -2,6 +2,8 @@
 
 ### Project description
 
+![Gameplay demo](https://user-images.githubusercontent.com/43912367/177056990-d6d74ae5-70e9-4bd2-9bb9-b523b5ca54b9.gif)
+
 Game:
 This is a playable version with cannon, walls, and ball collision physics. There also is a future trajectory of cannon shoot.
 The player can restart the level and switch the level to the next if they win. The number of balls in a game is limited. If a player reaches the end of created levels, they can create a new level and play it. The mouse coordinates are being passed from level to level. Sounds and music following the gameplay!
