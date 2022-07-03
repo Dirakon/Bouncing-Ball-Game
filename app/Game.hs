@@ -1,21 +1,17 @@
+{-# OPTIONS_GHC -Wall -fno-warn-type-defaults #-}
+
 module Game where
 
 import Consts
-import Data.Bool (bool)
-import Data.ByteString (ByteString, pack)
-import Data.Foldable (minimumBy)
 import Data.Maybe
-import Data.Word
 import Graphics.Gloss
 import Graphics.Gloss.Data.Vector
-import Graphics.Gloss.Data.ViewPort
 import Graphics.Gloss.Geometry.Angle (radToDeg)
 import Graphics.Gloss.Interface.IO.Game
 import MathUtils
-import Render (renderEnemies, renderMap, renderPlayer)
-import TextSizeAnalysis (alignedCenterText, estimateTextWidth)
-import Types (Coords, EnemyBallType (..), EnemyPeg (..), MapInfo (..), MetaInfo (..), PlayerBall (..), Position, Restitution, Speed, Sprites (cannonSprite), Velocity, Sprites(..))
-import Graphics.Gloss (Picture)
+import Render (renderBackground, renderEnemies, renderMap, renderPlayer)
+import TextSizeAnalysis (alignedCenterText)
+import Types (Coords, EnemyBallType (..), EnemyPeg (..), MapInfo (..), MetaInfo (..), PlayerBall (..), Position, Sprites (..))
 
 -- | A data structure to hold the state of the game.
 data GameState = Game
@@ -42,22 +38,13 @@ initialStateFrom mapInfo metaInfo mouseCords =
 -- | Update the game by moving the ball and bouncing of walls and enemies.
 update :: Float -> GameState -> GameState
 update seconds state = case mainBall state of
-  Nothing -> state
-  Just player -> moveAndBounceBall player seconds state
-
-
-safeGetPictureById :: [Maybe Picture] -> Int -> Picture
-safeGetPictureById [] _ = blank
-safeGetPictureById arr index = iter (0, arr) index
+  Nothing -> updateBackgroundTrack state
+  Just player -> updateBackgroundTrack (moveAndBounceBall player seconds state)
   where
-    iter (_, []) _ = blank
-    iter (i, (x:xs)) lookFor = 
-      if lookFor == i then
-        case x of
-          Nothing -> blank
-          Just t -> t
-      else
-        iter (i + 1, xs) lookFor
+    updateBackgroundTrack state = 
+      state {metaInfo = newMetaInfo}
+      where
+        newMetaInfo = (metaInfo state) {requestedBackgroundTrackId = backgroundTrackId (mapInfo state)}
 
 -- | Convert a game state into a picture.
 render ::
@@ -66,10 +53,10 @@ render ::
 render state =
   mapBackground <> ballTrajectory <> ball <> allEnemyBalls <> cannonPicture <> textPicture <> mapPicture
   where
-    mapBackground = safeGetPictureById mapBackgrounds $ backgroundId $ mapInfo state
-    mapBackgrounds = backgrounds $ sprites $ metaInfo state
+    mapBackground = renderBackground mapData $metaInfo state
+
     -- Text rendering
-    textPicture = translate 0 (- fromIntegral height / 2 + 20) (scale 0.2 0.2 (color green (alignedCenterText textToPrint)))
+    textPicture = translate 0 (- fromIntegral height / 2 + 20) (scale 0.2 0.2 (color black (alignedCenterText textToPrint)))
     textToPrint
       | Game.allDestroyableBallsAreDestroyed state = "You won! Press enter to visit the next level."
       | lives > 0 = "Balls left: " ++ show lives ++ " (press space to edit the level)"
@@ -114,15 +101,12 @@ render state =
     playerBallIsDeployed = case mainBall state of
       Nothing -> False
       _ -> True
-    noEnemyBallsLeft = case listToMaybe (enemyBalls mapData) of
-      Nothing -> True
-      _ -> False
     mouseCoords = userMousePosition state
     currentCannonPosition = cannonPosition mapData
     directionFromCannonToMouse = normalizeV (vectorDiff mouseCoords currentCannonPosition)
 
 simulatedBallTrajectory :: MapInfo -> Position -> Vector -> Float -> Float -> [Point]
-simulatedBallTrajectory mapData startPosition@(x, y) dir@(dirX, dirY) startSpeed simulationDt =
+simulatedBallTrajectory mapData startPosition dir startSpeed simulationDt =
   if collidedWithAnything
     then [newPoint]
     else newPoint : simulatedBallTrajectory mapData newPoint nextDir newSpeed simulationDt
@@ -215,12 +199,12 @@ moveAndCollide ballPosition@(x, y) dt dir startSpeed radius mapData = (newPoint,
                 then Nothing
                 else Just (EnemyCollision enemy onEnemyCollisionPoint, vectorSum [mulSV (- playerOtsckokCoefficient) normalizedDir, collisionPoint])
               where
-                onEnemyCollisionPoint = vectorSum [collisionPoint,mulSV radius $  normalizeV ( (enemyPosition enemy)`vectorDiff` collisionPoint) ]
+                onEnemyCollisionPoint = vectorSum [collisionPoint, mulSV radius $ normalizeV ((enemyPosition enemy) `vectorDiff` collisionPoint)]
                 alreadyColliding = distanceBetween (enemyPosition enemy) movementStart <= enemyRadius enemy + radius
 
 moveAndBounceBall :: PlayerBall -> Float -> GameState -> GameState
 moveAndBounceBall
-  playerBall@(PlayerBall playerPos@(x, y) playerDir@(oldDirX, oldDirY) playerRestitution speed playerRadius)
+  (PlayerBall playerPos (oldDirX, oldDirY) playerRestitution speed playerRadius)
   seconds
   state =
     if dtLeft <= 0
@@ -277,12 +261,12 @@ moveAndBounceBall
 
       newProcessedSpeed = case collisionData of
         Nothing -> newSpeed
-        _ -> newSpeed * (1-playerVelocityLoseCoefficient)
+        _ -> newSpeed * (1 - playerVelocityLoseCoefficient)
 
       -- Change direction on collision
       nextDir = case collisionData of
         Nothing -> (curDirX, curDirY)
-        Just (EnemyCollision enemy collisionPoint , _) -> playerVelocityOnEnemyCollision playerBall (curDirX, curDirY) enemy collisionPoint
+        Just (EnemyCollision enemy collisionPoint, _) -> playerVelocityOnEnemyCollision (curDirX, curDirY) enemy collisionPoint
         Just (RightWallCollision, _) -> (- abs curDirX, curDirY)
         Just (LeftWallCollision, _) -> (abs curDirX, curDirY)
         Just (CeilingCollision, _) -> (curDirX, - abs curDirY)
@@ -296,11 +280,10 @@ moveAndBounceBall
         Just (_, dt') -> dt'
 
 -- | Change player velocity when colliding with one enemy peg
-playerVelocityOnEnemyCollision :: PlayerBall -> Vector -> EnemyPeg -> Coords-> Vector
+playerVelocityOnEnemyCollision :: Vector -> EnemyPeg -> Coords -> Vector
 playerVelocityOnEnemyCollision
-  playerBall@(PlayerBall playerPos@(playerX, playerY) _ playerRestitution speed playerRadius)
   (oldVx, oldVy)
-  enemyPeg@(EnemyPeg position enemyRadius _) 
+  (EnemyPeg position _ _)
   collisionPoint =
     getNewVec position collisionPoint (oldVx, oldVy)
     where
@@ -355,7 +338,7 @@ getFirstEnemyIntersection
 handleKeys :: Event -> GameState -> GameState
 -- Restart game on 's' entered
 handleKeys (EventKey (Char 's') Down _ _) state =
-  initialStateFrom (initialMap state) (updateMetaInfoSounds [Just "reset_level"] (metaInfo state)) (0, 0) 
+  initialStateFrom (initialMap state) (updateMetaInfoSounds [Just "reset_level"] (metaInfo state)) (0, 0)
 -- Spawn ball on mouse click (if has balls left and ball is not deployed yet)
 handleKeys (EventKey (MouseButton LeftButton) Down _ (xPos, yPos)) state =
   state {mainBall = newMainBall} {metaInfo = newMetaInfo}
@@ -391,7 +374,7 @@ handleKeys _ game = game
 updateMetaInfoSounds :: [Maybe String] -> MetaInfo -> MetaInfo
 updateMetaInfoSounds [] metaInfo = metaInfo
 updateMetaInfoSounds (maybeString : others) oldMetaInfo =
-  oldMetaInfo {soundRequestList = newSoundRequests}
+  updateMetaInfoSounds others $oldMetaInfo {soundRequestList = newSoundRequests}
   where
     oldSoundRequests = soundRequestList oldMetaInfo
     newSoundRequests =

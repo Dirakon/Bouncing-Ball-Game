@@ -1,6 +1,8 @@
 {-# HLINT ignore "Use foldM" #-}
 {-# LANGUAGE CPP #-}
+{-# OPTIONS_GHC -Wall -fno-warn-type-defaults #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 module Sounds where
 
@@ -11,9 +13,13 @@ import           Data.Default.Class (def)
 import SDL.Mixer (Chunk)
 #endif
 
+import Consts (backgroundTracks)
 import Control.Exception (Exception, SomeException, try)
+import Control.Monad (unless)
+import Data.Maybe (listToMaybe)
 import GHC.Base (IO (IO))
-import Types (MetaInfo (soundList, soundRequestList), SoundList)
+import Types (MetaInfo (currentBackgroundTrackId, requestedBackgroundTrackId, soundList, soundRequestList), SoundList)
+import qualified Data.ByteString as ByteString
 
 initSounds :: IO ()
 initSounds = do
@@ -40,8 +46,31 @@ closeSounds = do
 
 playRequestedSounds :: MetaInfo -> IO MetaInfo
 playRequestedSounds metaInfo = do
+  unless (requestedBackgroundTrackId metaInfo == currentBackgroundTrackId metaInfo) $
+    playBackgroundMusic (requestedBackgroundTrackId metaInfo)
   newSoundList <- playAllSounds (soundList metaInfo) (soundRequestList metaInfo)
-  return (metaInfo {soundList = newSoundList} {soundRequestList = []})
+  return
+    $metaInfo
+      { soundList = newSoundList,
+        soundRequestList = [],
+        currentBackgroundTrackId = requestedBackgroundTrackId metaInfo
+      }
+
+playBackgroundMusic :: Int -> IO ()
+playBackgroundMusic musicIndex = do
+# ifdef SoundEnabled
+  print $ "Looking for track #" ++ show musicIndex
+  Mix.haltMusic
+  case listToMaybe(drop musicIndex backgroundTracks) of
+    Nothing -> do
+      putStrLn $ "Error finding track #" ++ show musicIndex
+    Just musicName -> do
+      musicRaw <- ByteString.readFile ("sounds/"++ musicName ++".mp3")
+      musicDecoded <- Mix.decode musicRaw
+      _ <- try $Mix.playMusic Mix.Forever musicDecoded :: IO (Either SomeException ())
+      return ()
+# endif
+  return ()
 
 playAllSounds :: SoundList -> [String] -> IO SoundList
 playAllSounds soundList [] = return soundList
@@ -51,10 +80,10 @@ playAllSounds soundList (soundName : others) = do
     newSoundList <- case lookup soundName soundList of
       Nothing-> do
           sound <- Mix.load ("sounds/"++soundName++".mp3")
-          try $Mix.play sound :: IO (Either SomeException ())
+          _ <- try $Mix.play sound :: IO (Either SomeException ())
           return $(soundName,sound) : soundList
       Just sound -> do
-          try $Mix.play sound :: IO (Either SomeException ())
+          _ <- try $Mix.play sound :: IO (Either SomeException ())
           return soundList
     playAllSounds newSoundList others
 #   else

@@ -39,6 +39,7 @@ executable gloss-template
       Sounds
       MathUtils
       TextSizeAnalysis
+      DevUtils
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     if !flag(sound)

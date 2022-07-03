@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# OPTIONS_GHC -Wall -fno-warn-type-defaults #-}
 
 module Types (Position, Velocity, Restitution, Speed, Coords, PlayerBall (..), EnemyBallType (..), EnemyPeg (..), MapInfo (..), Sprites (..), MetaInfo (..), SoundList) where
 
@@ -28,6 +29,8 @@ data MetaInfo = MetaInfo
   { currentLevel :: Int,
     soundList :: SoundList,
     soundRequestList :: [String],
+    currentBackgroundTrackId :: Int,
+    requestedBackgroundTrackId :: Int,
     sprites :: Sprites
   }
 
@@ -53,14 +56,15 @@ data Sprites = Sprites
     backgrounds :: [Maybe Picture]
   }
 
-data MapInfo = MapInfo
+data MapInfo =MapInfo
   { enemyBalls :: [EnemyPeg],
     cannonPosition :: Position,
     leftWallX :: Float,
     rightWallX :: Float,
     floorY :: Float,
     ceilingY :: Float,
-    backgroundId :: Int
+    backgroundPictureId :: Int,
+    backgroundTrackId :: Int
   }
   deriving (Show, Read, Generic)
 
