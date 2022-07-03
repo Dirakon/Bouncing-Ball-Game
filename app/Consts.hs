@@ -36,11 +36,11 @@ gravity :: Vector
 gravity = (0, -6) --(0.-6)
 
 playerOtsckokCoefficient :: Float
-playerOtsckokCoefficient = 1
+playerOtsckokCoefficient = 0.5
 
 playerVelocityLoseCoefficient :: Float
 playerVelocityLoseCoefficient = 0.05
 
 
 nonMovingPlayerThreshold :: Float
-nonMovingPlayerThreshold = 1
+nonMovingPlayerThreshold = 1.5

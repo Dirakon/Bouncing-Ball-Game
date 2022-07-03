@@ -27,12 +27,12 @@ data GameState = Game
   }
 
 -- Generate initial game state depending on the map and metaInfo.
-initialStateFrom :: MapInfo -> MetaInfo -> GameState
-initialStateFrom mapInfo metaInfo =
+initialStateFrom :: MapInfo -> MetaInfo -> Coords -> GameState
+initialStateFrom mapInfo metaInfo mouseCords =
   Game
     { mainBall = Nothing,
       ballsLeft = 6,
-      userMousePosition = (0, 0),
+      userMousePosition = mouseCords,
       mapInfo = mapInfo,
       initialMap = mapInfo,
       metaInfo = metaInfo
@@ -338,7 +338,7 @@ getFirstEnemyIntersection
 handleKeys :: Event -> GameState -> GameState
 -- Restart game on 's' entered
 handleKeys (EventKey (Char 's') Down _ _) state =
-  initialStateFrom (initialMap state) (updateMetaInfoSounds [Just "reset_level"] (metaInfo state))
+  initialStateFrom (initialMap state) (updateMetaInfoSounds [Just "reset_level"] (metaInfo state)) (0, 0) 
 -- Spawn ball on mouse click (if has balls left and ball is not deployed yet)
 handleKeys (EventKey (MouseButton LeftButton) Down _ (xPos, yPos)) state =
   state {mainBall = newMainBall} {metaInfo = newMetaInfo}

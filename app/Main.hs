@@ -60,7 +60,7 @@ main = do
 
   let initialMetaInfo = MetaInfo initialLevelIndex [] [] sprites
 
-  let initialFullState = GameOn (Game.initialStateFrom level initialMetaInfo)
+  let initialFullState = GameOn (Game.initialStateFrom level initialMetaInfo (0, 0))
   playIO window black fps initialFullState render handleKeys update
   closeSounds
   where
@@ -70,8 +70,9 @@ main = do
       return $ EditorOn (MapEditor.editorStateFrom (Game.initialMap gameState) (Game.metaInfo gameState))
     handleKeys (EventKey (SpecialKey KeySpace) Down _ _) (EditorOn editorState) = do
       playAllSounds [] ["change_mode"]
+      let userMousePosition = MapEditor.userMousePosition editorState
       saveLevel (getLevelPath (currentLevel metaInfo)) map
-      return $ GameOn (Game.initialStateFrom map metaInfo)
+      return $ GameOn (Game.initialStateFrom map metaInfo userMousePosition)
       where
         map = MapEditor.mapInfo editorState
         metaInfo = MapEditor.metaInfo editorState
@@ -86,9 +87,10 @@ main = do
         else do
           return oldState
       where
+        mouseCoords = Game.userMousePosition gameState
         metaInfo = Game.metaInfo gameState
         newState nextLevel gameState =
-          GameOn (Game.initialStateFrom nextLevel (metaInfo {currentLevel = currentLevel metaInfo + 1}))
+          GameOn (Game.initialStateFrom nextLevel (metaInfo {currentLevel = currentLevel metaInfo + 1}) mouseCoords)
 
         noEnemyBallsLeft = case listToMaybe (enemyBalls (Game.mapInfo gameState)) of
           Nothing -> True
