@@ -1,6 +1,6 @@
 # Bouncing-Ball-Game
 
-![Teaser](https://www.youtube.com/shorts/NkbpSOWCTjc)
+![Teaser](https://giphy.com/gifs/XGm6gLpdJkRDc6nt3e)
 
 ### Project description
 
