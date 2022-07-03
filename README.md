@@ -5,11 +5,11 @@
 ![Gameplay demo](https://user-images.githubusercontent.com/43912367/177056990-d6d74ae5-70e9-4bd2-9bb9-b523b5ca54b9.gif)
 
 Game:
-This is a playable version with cannon, walls, and ball collision physics. There also is a future trajectory of cannon shoot.
-The player can restart the level and switch the level to the next if they win. The number of balls in a game is limited. If a player reaches the end of created levels, they can create a new level and play it. The mouse coordinates are being passed from level to level. Sounds and music following the gameplay!
+This is a playable version with cannon, walls, and ball collision physics. There also is a trajectory of cannon shoot.
+The player can restart the level and switch the level to the next if they win. The number of balls in a game is limited. If a player reaches the end of created levels, they can create a new level and play it. Sounds and music accompany the gameplay!
 
 Map editor:
-The process of level creation is simple because the game has a built-in map editor. The map editor allows the player to place a ball and remove it using the right and left mouse buttons correspondingly. Moreover, the map editor provides the player the ability to change the enemy ball radius using the mouse wheel. Player also can change a background level. 
+The process of level creation is simple because the game has a built-in map editor. The map editor allows the player to place a ball and remove it using the right and left mouse buttons correspondingly. Moreover, the map editor provides the player the ability to change the enemy ball radius using the mouse wheel. Player also can change background picture/music. 
 
 
 ### How to run the game
@@ -27,14 +27,7 @@ cabal run</pre>
 To play, use mouse to set ball trajectory and left-click to shoot.
 In editor mode, use mouse wheel to change size of the ball, right-click to place the ball, left-click to remove the ball.
 
-
-### Acknowledgements
-The usage of SDL2_mixer is based on [this example](https://gitlab.homotopic.tech/haskell/sdl2-mixer/-/blob/master/examples/Basic/Main.hs). <br>
-The usage of Gloss is based on [this post](https://andrew.gibiansky.com/blog/haskell/haskell-gloss/). <br>
-The usage of C pre-processor is based on [this thread](https://stackoverflow.com/questions/6361846/where-can-i-learn-about-ifdef). <br>
-Segment-circle intersection algorithm is based on [this code example](https://rosettacode.org/wiki/Line_circle_intersection#Haskell). <br>
-
-### Badges
+### Authors
 
 Dmitry Bannikov
 
@@ -44,3 +37,16 @@ Kirill Korolev
 
 [<img src="https://badges.aleen42.com/src/telegram.svg">](https://t.me/zaqbez39me)
   
+
+### Music used
+
+<a href = "http://dig.ccmixter.org/files/sparky/65096">Toi encore (encore) by sparky (c) copyright 2022 Licensed under a Creative Commons Attribution Noncommercial license.</a> <br/>
+<a href = "http://dig.ccmixter.org/files/septahelix/33947">Tocharian C by septahelix (c) copyright 2014 Licensed under a Creative Commons Attribution (3.0) license.</a> <br/>
+<a href = "http://dig.ccmixter.org/files/JeffSpeed68/58628">The Vendetta by Stefan Kartenberg (c) copyright 2018 Licensed under a Creative Commons Attribution (3.0) license. Ft: Apoxode</a> <br/>
+
+### Acknowledgements
+The usage of SDL2_mixer is based on [this example](https://gitlab.homotopic.tech/haskell/sdl2-mixer/-/blob/master/examples/Basic/Main.hs). <br>
+The usage of Gloss is based on [this post](https://andrew.gibiansky.com/blog/haskell/haskell-gloss/). <br>
+The usage of C pre-processor is based on [this thread](https://stackoverflow.com/questions/6361846/where-can-i-learn-about-ifdef). <br>
+Segment-circle intersection algorithm is based on [this code example](https://rosettacode.org/wiki/Line_circle_intersection#Haskell). <br>
+
