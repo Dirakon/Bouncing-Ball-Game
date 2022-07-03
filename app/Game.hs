@@ -14,7 +14,8 @@ import Graphics.Gloss.Interface.IO.Game
 import MathUtils
 import Render (renderEnemies, renderMap, renderPlayer)
 import TextSizeAnalysis (alignedCenterText, estimateTextWidth)
-import Types (Coords, EnemyBallType (..), EnemyPeg (..), MapInfo (..), MetaInfo (..), PlayerBall (..), Position, Restitution, Speed, Sprites (cannonSprite), Velocity)
+import Types (Coords, EnemyBallType (..), EnemyPeg (..), MapInfo (..), MetaInfo (..), PlayerBall (..), Position, Restitution, Speed, Sprites (cannonSprite), Velocity, Sprites(..))
+import Graphics.Gloss (Picture)
 
 -- | A data structure to hold the state of the game.
 data GameState = Game
@@ -44,13 +45,29 @@ update seconds state = case mainBall state of
   Nothing -> state
   Just player -> moveAndBounceBall player seconds state
 
+
+safeGetPictureById :: [Maybe Picture] -> Int -> Picture
+safeGetPictureById [] _ = blank
+safeGetPictureById arr index = iter (0, arr) index
+  where
+    iter (_, []) _ = blank
+    iter (i, (x:xs)) lookFor = 
+      if lookFor == i then
+        case x of
+          Nothing -> blank
+          Just t -> t
+      else
+        iter (i + 1, xs) lookFor
+
 -- | Convert a game state into a picture.
 render ::
   GameState -> -- The game state to render.
   Picture -- A picture of this game state.
 render state =
-  ballTrajectory <> ball <> allEnemyBalls <> cannonPicture <> textPicture <> mapPicture
+  mapBackground <> ballTrajectory <> ball <> allEnemyBalls <> cannonPicture <> textPicture <> mapPicture
   where
+    mapBackground = safeGetPictureById mapBackgrounds $ backgroundId $ mapInfo state
+    mapBackgrounds = backgrounds $ sprites $ metaInfo state
     -- Text rendering
     textPicture = translate 0 (- fromIntegral height / 2 + 20) (scale 0.2 0.2 (color green (alignedCenterText textToPrint)))
     textToPrint

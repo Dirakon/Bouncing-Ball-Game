@@ -12,6 +12,8 @@ offset = 100
 background :: Color
 background = black
 
+pngBackgrounds = ["sprites/level1.png", "sprites/level2.png", "sprites/level3.png"]
+
 -- | Number of frames to show per second.
 fps :: Int
 fps = 60

@@ -49,7 +49,8 @@ data EnemyPeg = EnemyPeg
   deriving (Eq, Show, Read, Generic)
 
 data Sprites = Sprites
-  { cannonSprite :: Picture
+  { cannonSprite :: Picture,
+    backgrounds :: [Maybe Picture]
   }
 
 data MapInfo = MapInfo
@@ -58,7 +59,8 @@ data MapInfo = MapInfo
     leftWallX :: Float,
     rightWallX :: Float,
     floorY :: Float,
-    ceilingY :: Float
+    ceilingY :: Float,
+    backgroundId :: Int
   }
   deriving (Show, Read, Generic)
 

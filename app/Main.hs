@@ -24,12 +24,21 @@ import Types
 window :: Display
 window = InWindow "Game" (width, height) (offset, offset)
 
+loadJuicyPNGS [] = []
+loadJuicyPNGS (x:xs) = [loadJuicyPNG x] ++ loadJuicyPNGS xs
+
+listFromIO x = sequence x
+
+
+
 loadSprites :: IO Sprites
 loadSprites = do
   cannonSprite <- loadJuicyPNG "sprites/cannon.png"
+  backgrounds <- listFromIO $ loadJuicyPNGS pngBackgrounds
   return
     ( Sprites
-        { cannonSprite = tryUse cannonSprite
+        { cannonSprite = tryUse cannonSprite,
+          backgrounds = backgrounds
         }
     )
   where
@@ -67,14 +76,17 @@ main = do
     -- Change mode on 'space' pressed
     handleKeys (EventKey (SpecialKey KeySpace) Down _ _) (GameOn gameState) = do
       playAllSounds [] ["change_mode"]
-      return $ EditorOn (MapEditor.editorStateFrom (Game.initialMap gameState) (Game.metaInfo gameState))
+      return $ EditorOn (MapEditor.editorStateFrom (Game.initialMap gameState) (Game.metaInfo gameState) (sprites (Game.metaInfo gameState)) pngBackgrounds)
     handleKeys (EventKey (SpecialKey KeySpace) Down _ _) (EditorOn editorState) = do
       playAllSounds [] ["change_mode"]
       let userMousePosition = MapEditor.userMousePosition editorState
-      saveLevel (getLevelPath (currentLevel metaInfo)) map
+      saveLevel (getLevelPath (currentLevel metaInfo)) newMap
       return $ GameOn (Game.initialStateFrom map metaInfo userMousePosition)
       where
-        map = MapEditor.mapInfo editorState
+        newMap = map {
+          backgroundId = MapEditor.currentBackgroundIndex editorState
+        }
+        map = MapEditor.mapInfo editorState 
         metaInfo = MapEditor.metaInfo editorState
 
     -- Go to next level in play mode on 'enter' being pressed with no balls on the map
