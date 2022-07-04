@@ -25,7 +25,7 @@ flag sound
   description: enables sound with SDL2
   default: True
 
-executable gloss-template
+executable bouncing-crusher
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
