@@ -12,6 +12,7 @@ import MathUtils
 import Render (renderBackground, renderEnemies, renderMap, renderPlayer)
 import TextSizeAnalysis (alignedCenterText)
 import Types (Coords, EnemyBallType (..), EnemyPeg (..), MapInfo (..), MetaInfo (..), PlayerBall (..), Position, Sprites (..))
+import Graphics.Gloss.Geometry.Line (intersectSegHorzLine, intersectSegVertLine)
 
 -- | A data structure to hold the state of the game.
 data GameState = Game
@@ -156,7 +157,7 @@ moveAndCollide ballPosition@(x, y) dt dir startSpeed radius mapData = (newPoint,
     allCollisions = catMaybes [collisionWithFloor, collisionWithCeiling, collisionWithLeftWall, collisionWithRightWall, collisionWithEnemy]
       where
         collisionWithFloor =
-          case segmentHorizontalLineIntersection movementStart predictedNextPoint (radius + floorY mapData) of
+          case intersectSegHorzLine movementStart predictedNextPoint (radius + floorY mapData) of
             Nothing -> Nothing
             Just collisionPoint ->
               if alreadyColliding
@@ -165,7 +166,7 @@ moveAndCollide ballPosition@(x, y) dt dir startSpeed radius mapData = (newPoint,
               where
                 alreadyColliding = y <= radius + floorY mapData
         collisionWithCeiling =
-          case segmentHorizontalLineIntersection movementStart predictedNextPoint (- radius + ceilingY mapData) of
+          case intersectSegHorzLine movementStart predictedNextPoint (- radius + ceilingY mapData) of
             Nothing -> Nothing
             Just collisionPoint ->
               if alreadyColliding
@@ -174,7 +175,7 @@ moveAndCollide ballPosition@(x, y) dt dir startSpeed radius mapData = (newPoint,
               where
                 alreadyColliding = y >= - radius + ceilingY mapData
         collisionWithLeftWall =
-          case segmentVerticalLineIntersection movementStart predictedNextPoint (radius + leftWallX mapData) of
+          case intersectSegVertLine movementStart predictedNextPoint (radius + leftWallX mapData) of
             Nothing -> Nothing
             Just collisionPoint ->
               if alreadyColliding
@@ -183,7 +184,7 @@ moveAndCollide ballPosition@(x, y) dt dir startSpeed radius mapData = (newPoint,
               where
                 alreadyColliding = x <= radius + leftWallX mapData
         collisionWithRightWall =
-          case segmentVerticalLineIntersection movementStart predictedNextPoint (- radius + rightWallX mapData) of
+          case intersectSegVertLine movementStart predictedNextPoint (- radius + rightWallX mapData) of
             Nothing -> Nothing
             Just collisionPoint ->
               if alreadyColliding

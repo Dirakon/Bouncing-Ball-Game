@@ -30,7 +30,9 @@ window :: Display
 window = InWindow "Bouncing Crusher" (width, height) (offset, offset)
 
 -- | Load multiple PNGs with gloss-juicy
-loadJuicyPNGS :: [FilePath] -> [IO (Maybe Picture)]
+loadJuicyPNGS :: 
+  [FilePath] -- ^ Sprite picture paths
+  -> [IO (Maybe Picture)]
 loadJuicyPNGS = map loadJuicyPNG
 
 listFromIO :: (Traversable t, Monad m) => t (m a) -> m (t a)
@@ -51,13 +53,18 @@ loadSprites = do
     tryUse picture = fromMaybe blank picture
 
 -- | Save level by path.
-saveLevel :: FilePath -> MapInfo -> IO ()
+saveLevel :: 
+  FilePath -- ^ Path where to save level
+  -> MapInfo -- ^ Level to save
+  -> IO ()
 saveLevel fileName map = do
   ByteStringLazy.writeFile fileName (encode map)
 
 -- | Load levels sequentially from some index.
 -- If a level cannot be loaded, the procedure is stopped and level list is returned.
-loadAllSequentialLevelsFrom :: Int -> IO [MapInfo]
+loadAllSequentialLevelsFrom :: 
+  Int -- ^ Starting index 
+  -> IO [MapInfo] -- ^ List of levels from starting sindex until levels cannot be loaded.
 loadAllSequentialLevelsFrom start = do
   maybeLoadedLevel <- loadLevel (getLevelPath start)
   case maybeLoadedLevel of
@@ -67,7 +74,9 @@ loadAllSequentialLevelsFrom start = do
       return $ level : otherLevels
 
 -- | Try load level by path.
-loadLevel :: FilePath -> IO (Maybe MapInfo)
+loadLevel :: 
+  FilePath -- ^ Level path
+  -> IO (Maybe MapInfo)
 loadLevel fileName = do
   levelFileExists <- doesFileExist fileName
   if not levelFileExists
@@ -82,7 +91,9 @@ loadLevel fileName = do
 -- | Try load the level only if preloaded levels have been exhausted.
 -- If level cannot be loaded, load empty map.
 -- Return new level and updated metaInfo.
-loadLevelIfUnloaded :: MetaInfo -> IO (MetaInfo, MapInfo)
+loadLevelIfUnloaded :: 
+  MetaInfo -- ^ Level
+  -> IO (MetaInfo, MapInfo)
 loadLevelIfUnloaded oldMetaInfo = do
   case listToMaybe (preloadedLevels oldMetaInfo) of
     Just neededLevel -> do
@@ -166,10 +177,15 @@ main = do
       return (GameOn (Game.update dt gameState {Game.metaInfo = newMetaInfo}))
 
 -- | Convert level index to filePath
-getLevelPath :: Int -> FilePath
+getLevelPath :: 
+  Int -- ^ Level index
+  -> FilePath -- ^ Level path
 getLevelPath levelIndex = "levels/level" ++ show levelIndex
 
 -- | Update sound requests by adding one sounds, and return new MetaInfo
-addSoundToRequests :: String -> MetaInfo -> MetaInfo
+addSoundToRequests :: 
+  String -- ^ Sound name
+  -> MetaInfo -- ^ Input metaInfo
+  -> MetaInfo -- ^ Updated metaInfo
 addSoundToRequests sound metaInfo =
   metaInfo {soundRequestList = sound : soundRequestList metaInfo}

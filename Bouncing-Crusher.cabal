@@ -1,18 +1,18 @@
 cabal-version:      2.4
 name:               Bouncing-Crusher
-version:            0.1.0.0
+version:            0.8.0.0
 
 -- A short (one-line) description of the package.
--- synopsis:
+-- synopsis: Peggle-like game about ball collisions
 
 -- A longer description of the package.
--- description:
+-- description: Peggle-like game about ball collisions
 
 -- A URL where users can report bugs.
 -- bug-reports:
 
 -- The license under which the package is released.
--- license:
+-- license: MIT
 author:             Dirakon
 maintainer:         609700zxc@mail.ru
 
@@ -45,7 +45,7 @@ executable bouncing-crusher
     if !flag(sound)
       build-depends: base >=4, gloss, gloss-juicy, bytestring, binary, directory, GLUT, data-default-class
     if flag(sound)
-      build-depends: base >=4, gloss, gloss-juicy, bytestring, binary, directory, GLUT, data-default-class, sdl2,sdl2-mixer
+      build-depends: base >=4, gloss, gloss-juicy, bytestring, binary, directory, GLUT, data-default-class, sdl2, sdl2-mixer
       cpp-options: -DSoundEnabled
     hs-source-dirs:   app
     default-language: Haskell2010

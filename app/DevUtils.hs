@@ -26,12 +26,17 @@ data NewMapInfo = MapInfo
 instance Binary NewMapInfo
 
 -- | Save level in new MapInfo format.
-saveNewLevel :: FilePath -> NewMapInfo -> IO ()
+saveNewLevel :: 
+  FilePath -- ^ Level path
+  -> NewMapInfo -- ^ NewMapInfo to save
+  -> IO ()
 saveNewLevel fileName map = do
   ByteStringLazy.writeFile fileName (encode map)
 
 -- | Load level from old MapInfo format.
-loadOldLevel :: FilePath -> IO MapInfo
+loadOldLevel :: 
+  FilePath -- ^ Level path
+  -> IO MapInfo
 loadOldLevel fileName = do
   maybeDecodedMap <- (decodeFileOrFail fileName :: IO (Either (ByteOffset, String) MapInfo))
   case maybeDecodedMap of
@@ -39,7 +44,9 @@ loadOldLevel fileName = do
     Right decodedMap -> return decodedMap
 
 -- | Transition old MapInfo format into new MapInfo format.
-updateVersion :: MapInfo -> NewMapInfo
+updateVersion :: 
+  MapInfo -- ^ Old format level
+  -> NewMapInfo -- ^ New format level
 updateVersion oldMap =
   DevUtils.MapInfo
     { DevUtils.enemyBalls = Types.enemyBalls oldMap,
@@ -56,7 +63,10 @@ getLevelPath :: Int -> FilePath
 getLevelPath levelIndex = "levels/level" ++ show levelIndex
 
 -- | Update maps from X to Y: transition from MapInfo to NewMapInfo.
-updateMaps :: Int -> Int -> IO ()
+updateMaps :: 
+  Int -- ^ Starting index
+  -> Int -- ^ Index of last map to update
+  -> IO ()
 updateMaps firstMapToUpdate lastMapToUpdate = do
   oldMap <- loadOldLevel (getLevelPath firstMapToUpdate)
   let newMap = updateVersion oldMap
