@@ -62,7 +62,9 @@ playRequestedSounds metaInfo = do
 
 -- | Play background music by index in backgroundTracks.
 -- If index is incorrect, print error and do nothing.
-playBackgroundMusic :: Int -> IO ()
+playBackgroundMusic :: 
+  Int -- ^ Background track index
+  -> IO ()
 playBackgroundMusic musicIndex = do
 # ifdef SoundEnabled
   print $ "Looking for track #" ++ show musicIndex
@@ -80,7 +82,10 @@ playBackgroundMusic musicIndex = do
 
 -- | Play sounds from soundList and sound request list.
 -- Returns updated soundList (with more sounds loaded).
-playAllSounds :: SoundList -> [String] -> IO SoundList
+playAllSounds :: 
+  SoundList -- ^ Initial soundList
+  -> [String] -- ^ List of requested sounds
+  -> IO SoundList -- ^ Updated soundList
 playAllSounds soundList [] = return soundList
 playAllSounds soundList (soundName : others) = do
 
