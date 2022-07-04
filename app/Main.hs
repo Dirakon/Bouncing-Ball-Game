@@ -5,7 +5,7 @@
 {-# HLINT ignore "Use foldr" #-}
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
 
-module Main (main, MetaInfo) where
+module Main where
 
 import Consts
 import Control.Monad (unless)
@@ -25,15 +25,18 @@ import Sounds
 import System.Directory (doesFileExist)
 import Types
 
+-- | Gloss window configuration.
 window :: Display
-window = InWindow "Game" (width, height) (offset, offset)
+window = InWindow "Bouncing Crusher" (width, height) (offset, offset)
 
+-- | Load multiple PNGs with gloss-juicy
 loadJuicyPNGS :: [FilePath] -> [IO (Maybe Picture)]
 loadJuicyPNGS = map loadJuicyPNG
 
 listFromIO :: (Traversable t, Monad m) => t (m a) -> m (t a)
 listFromIO = sequence
 
+-- | Load all sprites from files into Sprites.
 loadSprites :: IO Sprites
 loadSprites = do
   cannonSprite <- loadJuicyPNG "sprites/cannon.png"
@@ -47,10 +50,13 @@ loadSprites = do
   where
     tryUse picture = fromMaybe blank picture
 
+-- | Save level by path.
 saveLevel :: FilePath -> MapInfo -> IO ()
 saveLevel fileName map = do
   ByteStringLazy.writeFile fileName (encode map)
 
+-- | Load levels sequentially from some index.
+-- If a level cannot be loaded, the procedure is stopped and level list is returned.
 loadAllSequentialLevelsFrom :: Int -> IO [MapInfo]
 loadAllSequentialLevelsFrom start = do
   maybeLoadedLevel <- loadLevel (getLevelPath start)
@@ -60,6 +66,7 @@ loadAllSequentialLevelsFrom start = do
       otherLevels <- loadAllSequentialLevelsFrom (start + 1)
       return $ level : otherLevels
 
+-- | Try load level by path.
 loadLevel :: FilePath -> IO (Maybe MapInfo)
 loadLevel fileName = do
   levelFileExists <- doesFileExist fileName
@@ -72,11 +79,14 @@ loadLevel fileName = do
         Left _ -> return Nothing
         Right decodedMap -> return $ Just decodedMap
 
+-- | Try load the level only if preloaded levels have been exhausted.
+-- If level cannot be loaded, load empty map.
+-- Return new level and updated metaInfo.
 loadLevelIfUnloaded :: MetaInfo -> IO (MetaInfo, MapInfo)
 loadLevelIfUnloaded oldMetaInfo = do
   case listToMaybe (preloadedLevels oldMetaInfo) of
     Just neededLevel -> do
-      print $ neededLevel
+      print neededLevel
       return
         ( oldMetaInfo
             { currentLevel = currentLevel oldMetaInfo + 1,
@@ -91,6 +101,7 @@ loadLevelIfUnloaded oldMetaInfo = do
           fromMaybe emptyMap maybeLoadedLevel
         )
 
+-- | Game state that represents if the game is in MapEditor or in Play Mode.
 data GameState = GameOn Game.GameState | EditorOn MapEditor.MapEditorState deriving (Show)
 
 main :: IO ()
@@ -104,7 +115,7 @@ main = do
 
   sprites <- loadSprites
 
-  let initialMetaInfo = MetaInfo initialLevelIndex [] [] (-1) (-1) sprites (Prelude.drop 1 levels) (0,0)
+  let initialMetaInfo = MetaInfo initialLevelIndex [] [] (-1) (-1) sprites (Prelude.drop 1 levels) (0, 0)
 
   let initialFullState = GameOn (Game.initialStateFrom firstLevel initialMetaInfo)
   playIO window black fps initialFullState render handleKeys update
@@ -154,9 +165,11 @@ main = do
       newMetaInfo <- playRequestedSounds $ Game.metaInfo gameState
       return (GameOn (Game.update dt gameState {Game.metaInfo = newMetaInfo}))
 
+-- | Convert level index to filePath
 getLevelPath :: Int -> FilePath
 getLevelPath levelIndex = "levels/level" ++ show levelIndex
 
+-- | Update sound requests by adding one sounds, and return new MetaInfo
 addSoundToRequests :: String -> MetaInfo -> MetaInfo
 addSoundToRequests sound metaInfo =
   metaInfo {soundRequestList = sound : soundRequestList metaInfo}

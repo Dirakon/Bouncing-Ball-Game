@@ -1,4 +1,4 @@
-# Revision history for gloss-template
+# Revision history for Bouncing-Crusher
 
 ## 0.1.0.0 -- YYYY-mm-dd
 

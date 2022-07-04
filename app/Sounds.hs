@@ -21,6 +21,7 @@ import GHC.Base (IO (IO))
 import Types (MetaInfo (currentBackgroundTrackId, requestedBackgroundTrackId, soundList, soundRequestList), SoundList)
 import qualified Data.ByteString as ByteString
 
+-- | Initialize SDL2-mixer (if sound is enabled)
 initSounds :: IO ()
 initSounds = do
 # ifdef SoundEnabled
@@ -32,6 +33,7 @@ initSounds = do
 # endif
   return ()
 
+-- | Close SDL2-mixer (if sound is enabled)
 closeSounds :: IO ()
 closeSounds = do
 # ifdef SoundEnabled
@@ -44,6 +46,8 @@ closeSounds = do
 # endif
   return ()
 
+-- | Uses metaInfo's sounds/background music requests to play sounds, 
+-- returns metaInfo with cleared requests.
 playRequestedSounds :: MetaInfo -> IO MetaInfo
 playRequestedSounds metaInfo = do
   unless (requestedBackgroundTrackId metaInfo == currentBackgroundTrackId metaInfo) $
@@ -56,6 +60,8 @@ playRequestedSounds metaInfo = do
         currentBackgroundTrackId = requestedBackgroundTrackId metaInfo
       }
 
+-- | Play background music by index in backgroundTracks.
+-- If index is incorrect, print error and do nothing.
 playBackgroundMusic :: Int -> IO ()
 playBackgroundMusic musicIndex = do
 # ifdef SoundEnabled
@@ -72,6 +78,8 @@ playBackgroundMusic musicIndex = do
 # endif
   return ()
 
+-- | Play sounds from soundList and sound request list.
+-- Returns updated soundList (with more sounds loaded).
 playAllSounds :: SoundList -> [String] -> IO SoundList
 playAllSounds soundList [] = return soundList
 playAllSounds soundList (soundName : others) = do
