@@ -48,8 +48,8 @@ update seconds state = case mainBall state of
 
 -- | Convert a game state into a picture.
 render ::
-  GameState -> -- The game state to render.
-  Picture -- A picture of this game state.
+  GameState -- ^ The game state to render.
+  -> Picture -- ^ A picture of this game state.
 render state =
   mapBackground <> ballTrajectory <> ball <> allEnemyBalls <> cannonPicture <> textPicture <> mapPicture
   where
@@ -202,7 +202,11 @@ moveAndCollide ballPosition@(x, y) dt dir startSpeed radius mapData = (newPoint,
                 onEnemyCollisionPoint = vectorSum [collisionPoint, mulSV radius $ normalizeV ((enemyPosition enemy) `vectorDiff` collisionPoint)]
                 alreadyColliding = distanceBetween (enemyPosition enemy) movementStart <= enemyRadius enemy + radius
 
-moveAndBounceBall :: PlayerBall -> Float -> GameState -> GameState
+moveAndBounceBall :: 
+  PlayerBall -- ^ Player ball before move and bounce.
+  -> Float -- ^ Seconds of game.
+  -> GameState -- ^ Current 'GameState'.
+  -> GameState -- ^ New 'GameState'
 moveAndBounceBall
   (PlayerBall playerPos (oldDirX, oldDirY) playerRestitution speed playerRadius)
   seconds
@@ -280,7 +284,11 @@ moveAndBounceBall
         Just (_, dt') -> dt'
 
 -- | Change player velocity when colliding with one enemy peg
-playerVelocityOnEnemyCollision :: Vector -> EnemyPeg -> Coords -> Vector
+playerVelocityOnEnemyCollision :: 
+  Vector -- ^ 'Vector' of player ball before collision.
+  -> EnemyPeg -- ^ Enemy ball for collision.
+  -> Coords -- ^ 'Coords' of collision point.
+  -> Vector -- ^ New 'Vector' of player ball.
 playerVelocityOnEnemyCollision
   (oldVx, oldVy)
   (EnemyPeg position _ _)
@@ -317,7 +325,12 @@ playerVelocityOnEnemyCollision
             resultVector = (x, y)
 
 -- Get first enemy peg intersecting with the player
-getFirstEnemyIntersection :: Position -> Position -> [EnemyPeg] -> Float -> Maybe (EnemyPeg, Position)
+getFirstEnemyIntersection ::
+  Position -- ^ Player ball start 'Position'.
+  -> Position -- ^ Player ball end 'Position'.
+  -> [EnemyPeg] -- ^ Input 'List' of 'EnemyPeg'.
+  -> Float -- ^ Player ball radius.
+  -> Maybe (EnemyPeg, Position)
 getFirstEnemyIntersection
   playerStart
   playerEnd
@@ -336,9 +349,11 @@ getFirstEnemyIntersection
 
 -- | Respond to key events.
 handleKeys :: Event -> GameState -> GameState
+
 -- Restart game on 's' entered
 handleKeys (EventKey (Char 's') Down _ _) state =
   initialStateFrom (initialMap state) (updateMetaInfoSounds [Just "reset_level"] (metaInfo state))
+
 -- Spawn ball on mouse click (if has balls left and ball is not deployed yet)
 handleKeys (EventKey (MouseButton LeftButton) Down _ (xPos, yPos)) state =
   state {mainBall = newMainBall} {metaInfo = newMetaInfo}
@@ -368,10 +383,15 @@ handleKeys (EventKey (MouseButton LeftButton) Down _ (xPos, yPos)) state =
 -- Update mouse position in meta info
 handleKeys (EventMotion (xPos, yPos)) state =
   state {metaInfo = (metaInfo state) {userMousePosition = (xPos, yPos)}}
+
 -- Do nothing for all other events.
 handleKeys _ game = game
 
-updateMetaInfoSounds :: [Maybe String] -> MetaInfo -> MetaInfo
+-- | Updated 'MetaInfo' with 'List' of sounds ('Maybe String').
+updateMetaInfoSounds :: 
+  [Maybe String] -- ^ 'List' of sounds.
+  -> MetaInfo -- ^ Input 'MetaInfo'.
+  -> MetaInfo -- ^ New 'MetaInfo'.
 updateMetaInfoSounds [] metaInfo = metaInfo
 updateMetaInfoSounds (maybeString : others) oldMetaInfo =
   updateMetaInfoSounds others $oldMetaInfo {soundRequestList = newSoundRequests}
@@ -381,7 +401,11 @@ updateMetaInfoSounds (maybeString : others) oldMetaInfo =
       oldSoundRequests ++ soundRequestAdditions
     soundRequestAdditions = maybeToList maybeString
 
-allDestroyableBallsAreDestroyed :: GameState -> Bool
+-- | Check weather all balls that can
+-- be destroyed are destroyed.
+allDestroyableBallsAreDestroyed :: 
+  GameState -- ^ Current 'GameState'
+  -> Bool -- ^ Result of check.
 allDestroyableBallsAreDestroyed state = not (any isDestructible (enemyBalls (mapInfo state)))
   where
     isDestructible (EnemyPeg _ _ Indestructible) = False
