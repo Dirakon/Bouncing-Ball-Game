@@ -16,11 +16,11 @@ import Graphics.Gloss.Geometry.Line (intersectSegHorzLine, intersectSegVertLine)
 
 -- | A data structure to hold the state of the game.
 data GameState = Game
-  { mainBall :: Maybe PlayerBall,
-    ballsLeft :: Int,
-    mapInfo :: MapInfo,
-    initialMap :: MapInfo,
-    metaInfo :: MetaInfo
+  { mainBall :: Maybe PlayerBall, -- ^ Player ball (nothing if the ball is not deployed).
+    ballsLeft :: Int, -- ^ Balls (life) left before game over.
+    mapInfo :: MapInfo, -- ^ Current level.
+    initialMap :: MapInfo, -- ^ Initial state of the level.
+    metaInfo :: MetaInfo -- ^ Meta info about game (Mouse position, etc.).
   }  
   deriving (Show)
 
@@ -37,7 +37,10 @@ initialStateFrom mapInfo metaInfo =
     } 
    
 -- | Update the game by moving the ball and bouncing of walls and enemies.
-update :: Float -> GameState -> GameState
+update :: 
+  Float -- ^ Time elapsed since last update.
+  -> GameState -- ^ Initial game state.
+  -> GameState -- ^ Updated game state.
 update seconds state = case mainBall state of
   Nothing -> updateBackgroundTrack state
   Just player -> updateBackgroundTrack (moveAndBounceBall player seconds state)
@@ -49,8 +52,8 @@ update seconds state = case mainBall state of
 
 -- | Convert a game state into a picture.
 render ::
-  GameState -> -- The game state to render.
-  Picture -- A picture of this game state.
+  GameState -- ^ The game state to render.
+  -> Picture -- ^ A picture of this game state.
 render state =
   mapBackground <> ballTrajectory <> ball <> allEnemyBalls <> cannonPicture <> textPicture <> mapPicture
   where
@@ -106,7 +109,14 @@ render state =
     currentCannonPosition = cannonPosition mapData
     directionFromCannonToMouse = normalizeV (vectorDiff mouseCoords currentCannonPosition)
 
-simulatedBallTrajectory :: MapInfo -> Position -> Vector -> Float -> Float -> [Point]
+-- | Get path of simulated ball trajectory (radius is 1).
+simulatedBallTrajectory :: 
+  MapInfo -- ^ Level.
+  -> Position -- ^ Start ball position.
+  -> Vector -- ^ Start ball direction.
+  -> Float -- ^ Start ball speed.
+  -> Float -- ^ dt of simulation.
+  -> [Point] -- ^ Path of the ball until the next collision.
 simulatedBallTrajectory mapData startPosition dir startSpeed simulationDt =
   if collidedWithAnything
     then [newPoint]
@@ -118,8 +128,10 @@ simulatedBallTrajectory mapData startPosition dir startSpeed simulationDt =
 
     (newPoint, nextDir, newSpeed, collisionData) = moveAndCollide startPosition simulationDt dir startSpeed 1 mapData
 
+-- | Collision with dtLeft or Nothing (no collision).
 type CollisionInfo = Maybe (SomeCollision, Float)
 
+-- | Different kinds of collisions.
 data SomeCollision
   = EnemyCollision EnemyPeg Coords
   | RightWallCollision
@@ -127,7 +139,16 @@ data SomeCollision
   | FloorCollision
   | CeilingCollision
 
-moveAndCollide :: Position -> Float -> Vector -> Float -> Float -> MapInfo -> (Vector, Vector, Float, CollisionInfo)
+-- | Try to move ball in certain direction, get all collisions, 
+-- apply gravity, get speed, direction, and position of either the point of first collision or simply next point of movement.
+moveAndCollide :: 
+  Position 
+  -> Float 
+  -> Vector 
+  -> Float 
+  -> Float 
+  -> MapInfo 
+  -> (Vector, Vector, Float, CollisionInfo)
 moveAndCollide ballPosition@(x, y) dt dir startSpeed radius mapData = (newPoint, nextDir, newSpeed, collisionData)
   where
     -- New direction and speed
