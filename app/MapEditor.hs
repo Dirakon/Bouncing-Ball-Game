@@ -12,13 +12,19 @@ import Types (Coords, EnemyBallType (..), EnemyPeg (..), MapInfo (..), MetaInfo 
 
 -- | A data structure to hold the state of the map editor.
 data MapEditorState = Game
-  { currentBall :: Maybe EnemyPeg,
-    mapInfo :: MapInfo,
-    metaInfo :: MetaInfo,
-    backgroundFiles :: [String]
+  { currentBall :: Maybe EnemyPeg, -- ^ Current ball following mouse.
+    mapInfo :: MapInfo, -- ^ Info about current map.
+    metaInfo :: MetaInfo, -- ^ Meta info about game (Mouse position, etc.).
+    backgroundFiles :: [String] -- ^ File names of backgrounds.
   }deriving (Show)
 
-changeIndex :: Int -> Int -> Int -> Int
+-- | Retrun index after performing and addition 
+-- operation with delta
+changeIndex :: 
+  Int -- ^ Current index.
+  -> Int -- ^ Delta for addition.
+  -> Int -- ^ Current length of 'backgroundFiles'.
+  -> Int -- ^ New index.
 changeIndex index delta len =
   if len /= 0
     then
@@ -29,7 +35,11 @@ changeIndex index delta len =
   where
     tempIndex = (index + delta) `mod` len
 
-changeRadius :: Maybe EnemyPeg -> Float -> Maybe EnemyPeg
+-- | Change radius of ball on delta.
+changeRadius :: 
+  Maybe EnemyPeg -- ^ Current ball.
+  -> Float -- ^ Delta.
+  -> Maybe EnemyPeg -- ^ New ball with changed radius.
 changeRadius peg delta = case peg of
   Nothing -> Nothing
   Just ball ->
@@ -40,7 +50,11 @@ changeRadius peg delta = case peg of
       currentRadius = enemyRadius ball
       newRadius = currentRadius + delta
 
-changeBallType :: Maybe EnemyPeg -> Int -> Maybe EnemyPeg
+-- | Change durability of ball with its type.
+changeBallType :: 
+  Maybe EnemyPeg -- ^ Current ball.
+  -> Int -- ^ Delta.
+  -> Maybe EnemyPeg -- ^ New ball with changed durability.
 changeBallType peg delta = case peg of
   Nothing -> Nothing
   Just ball -> case ballType ball of
@@ -55,7 +69,11 @@ changeBallType peg delta = case peg of
       where
         newDurability = curDurability + delta
 
-inBoundaries :: Coords -> Float -> Bool
+-- | Check weather ball with 'Coords' is in boundaries.
+inBoundaries :: 
+  Coords -- ^ Coordinates to check. 
+  -> Float -- ^ Radidius of ball.
+  -> Bool -- ^ Result value of check.
 inBoundaries cords radius = condition
   where
     condition =
@@ -65,8 +83,12 @@ inBoundaries cords radius = condition
       where
         (x, y) = cords
 
--- Change background picture on arrow left/right
-handleKeys :: Event -> MapEditorState -> MapEditorState
+handleKeys :: 
+  Event -- ^ Event.
+  -> MapEditorState -- ^ Current state of map editor.
+  -> MapEditorState -- ^ New map state of map editor.
+
+-- | Change background on previous picture with arrow Left.
 handleKeys (EventKey (SpecialKey KeyLeft) Down _ _) state =
   state {mapInfo = newMap}
   where
@@ -74,6 +96,8 @@ handleKeys (EventKey (SpecialKey KeyLeft) Down _ _) state =
     numberOfLevels = length stateBackgrounds
     newMap = (mapInfo state) {backgroundPictureId = newLevelIndex}
     newLevelIndex = changeIndex (backgroundPictureId (mapInfo state)) (-1) numberOfLevels
+
+-- | Change background on next picture with arrow Right.
 handleKeys (EventKey (SpecialKey KeyRight) Down _ _) state =
   state {mapInfo = newMap}
   where
@@ -81,7 +105,8 @@ handleKeys (EventKey (SpecialKey KeyRight) Down _ _) state =
     numberOfLevels = length stateBackgrounds
     newMap = (mapInfo state) {backgroundPictureId = newLevelIndex}
     newLevelIndex = changeIndex (backgroundPictureId (mapInfo state)) 1 numberOfLevels
--- Change background track on arrow left/right
+
+-- | Change music on previous with arrow Up.
 handleKeys (EventKey (SpecialKey KeyUp) Down _ _) state =
   state {mapInfo = newMap}
   where
@@ -89,6 +114,8 @@ handleKeys (EventKey (SpecialKey KeyUp) Down _ _) state =
     numberOfTracks = length stateBackgrounds
     newMap = (mapInfo state) {backgroundTrackId = newTrackId}
     newTrackId = changeIndex (backgroundTrackId (mapInfo state)) (-1) numberOfTracks
+
+-- | Change music on next with arrow Down.
 handleKeys (EventKey (SpecialKey KeyDown) Down _ _) state =
   state {mapInfo = newMap}
   where
@@ -96,6 +123,8 @@ handleKeys (EventKey (SpecialKey KeyDown) Down _ _) state =
     numberOfTracks = length stateBackgrounds
     newMap = (mapInfo state) {backgroundTrackId = newTrackId}
     newTrackId = changeIndex (backgroundTrackId (mapInfo state)) 1 numberOfTracks
+
+-- | Change current ball position on mouse move.
 handleKeys (EventMotion (xPos, yPos)) state =
   state {metaInfo = (metaInfo state){userMousePosition = newUserMousePosition}}
   where
@@ -116,6 +145,8 @@ handleKeys (EventKey (MouseButton RightButton) Down _ _) state =
     curBallRadius = maybe 10 enemyRadius curBall
     curBallType = maybe (Destructible 1) ballType curBall
     curBall = currentBall state
+
+-- | Remove ball on Left mouse button click.
 handleKeys (EventKey (MouseButton LeftButton) Down _ _) state =
   state
     { mapInfo = newMapInfo
@@ -131,6 +162,9 @@ handleKeys (EventKey (MouseButton LeftButton) Down _ _) state =
             sumRadius = enemyRadius x + currentRadius
             currentRadius = maybe 10 enemyRadius (currentBall state)
         (mouseX, mouseY) = userMousePosition $ metaInfo state
+
+-- | Increased the durability or size according
+-- to pressed shift or not.
 handleKeys (EventKey (MouseButton WheelUp) Down modif _) state =
   state
     { currentBall = newCurrentBall
@@ -141,6 +175,9 @@ handleKeys (EventKey (MouseButton WheelUp) Down modif _) state =
       Down -> changeBallType oldCurBall 1
       Up -> changeRadius oldCurBall 1
     (Modifiers shift_ _ _) = modif
+
+-- | Decrease the size or durability according
+-- to pressed shift or not.
 handleKeys (EventKey (MouseButton WheelDown) Down modif _) state =
   state
     { currentBall = newCurrentBall
@@ -153,21 +190,25 @@ handleKeys (EventKey (MouseButton WheelDown) Down modif _) state =
     (Modifiers shift_ _ _) = modif
 handleKeys _ state = state
 
+-- | Empty map info.
 emptyMap :: MapInfo
-emptyMap =
-  MapInfo
-    { enemyBalls = [],
-      cannonPosition = (0, 280),
-      leftWallX = -300,
-      rightWallX = 300,
-      floorY = -300,
-      ceilingY = 300,
-      backgroundPictureId = 0,
-      backgroundTrackId = 0
+emptyMap = MapInfo
+    { enemyBalls = [], -- List of enemy balls.
+      cannonPosition = (0, 280), -- Position of cannon.
+      leftWallX = -300, -- Left wall X 'Coords'.
+      rightWallX = 300, -- Right wall X 'Coords'.
+      floorY = -300, -- Floor Y 'Coords'.
+      ceilingY = 300, -- Ceiling Y 'Coords'.
+      backgroundPictureId = 0, -- Id of background 'Picture'.
+      backgroundTrackId = 0 -- Id of track.
     } 
 
--- Get editor state from map, and meta-info
-editorStateFrom :: MapInfo -> MetaInfo -> [String]  -> MapEditorState
+-- | Get editor state from map, and meta-info.
+editorStateFrom :: 
+  MapInfo -- ^ Input 'MapInfo'.
+  -> MetaInfo -- ^ Input 'MetaInfo'.
+  -> [String]  -- ^ Input array of picture names.
+  -> MapEditorState -- ^ Output 'MapEditorState'.
 editorStateFrom map metaInfo pictures =
   Game
     { currentBall = Just (EnemyPeg (0, 0) 10 (Destructible 1)),
@@ -176,9 +217,10 @@ editorStateFrom map metaInfo pictures =
       backgroundFiles = pictures
     }
 
+-- | Renderer of 'MapEditorState'.
 render ::
-  MapEditorState -> -- The map state to render.
-  Picture
+  MapEditorState -- ^ The map state to render.
+  -> Picture -- ^ The output picture.
 render state =
   mapBackground <> mapPicture <> allEnemyBalls <> textPicture
   where
@@ -194,9 +236,9 @@ render state =
 
 -- | Update the game by moving the ball.
 update ::
-  Float ->
-  MapEditorState ->
-  MapEditorState
+  Float 
+  -> MapEditorState -- ^ Input 'MapEditorState'.
+  -> MapEditorState -- ^ Output 'MapEditorState'.
 update _ state = case currentBall state of
   Nothing ->
     updateBackgroundTrack state
@@ -212,9 +254,10 @@ update _ state = case currentBall state of
       where
         newMetaInfo = (metaInfo state) {requestedBackgroundTrackId = backgroundTrackId (mapInfo state)}
 
+-- | Move current ball using current mouse position.
 moveCurBall ::
-  MapEditorState ->
-  MapEditorState
+  MapEditorState -- ^ 'MapEditorState' before move.
+  -> MapEditorState -- ^ 'MapEditorState' after move.
 moveCurBall
   state =
     state {currentBall = newCurrentBall}

@@ -8,11 +8,19 @@ import Graphics.Gloss
 import TextSizeAnalysis
 import Types
 
-safeFirstPicture :: [Maybe Picture] -> Picture
+-- | Get first 'Picture' from 'List'
+-- if it exists safely.
+safeFirstPicture :: 
+  [Maybe Picture] -- ^ Input list of pictures.
+  -> Picture -- ^ First 'Picture' or blank.
 safeFirstPicture [] = blank
 safeFirstPicture (x : xs) = fromMaybe blank x
 
-safeGetPictureById :: [Maybe Picture] -> Int -> Picture
+-- | Get 'Picture' by Id safely. 
+safeGetPictureById :: 
+  [Maybe Picture] -- ^ Input list of Maybe Pictures.
+  -> Int -- ^ Input Id of picture.
+  -> Picture -- ^ Output 'Picture' or blank.
 safeGetPictureById [] _ = blank
 safeGetPictureById arr index = iter (0, arr) index
   where
@@ -22,7 +30,10 @@ safeGetPictureById arr index = iter (0, arr) index
         then Data.Maybe.fromMaybe blank x
         else iter (i + 1, xs) lookFor
 
-renderMap :: MapInfo -> Picture
+-- | Render map using 'MapInfo'.
+renderMap :: 
+  MapInfo -- ^ Input 'MapInfo'.
+  -> Picture -- ^ Rendered 'Picture'.
 renderMap currentMapInfo = leftWall <> rightWall <> ceiling
   where
     leftWall =
@@ -43,7 +54,10 @@ renderMap currentMapInfo = leftWall <> rightWall <> ceiling
     wallHeight = curCeilingY - curFloorY + ceilWidth
     ceilLength = curRightX - curLeftX + wallWidth
 
-renderEnemies :: [EnemyPeg] -> Picture
+-- | Render all 'EnemyPeg' from 'List'.
+renderEnemies :: 
+  [EnemyPeg] -- ^ Input 'List' of 'EnemyPeg'.
+  -> Picture -- ^ Rendered 'Picture'.
 renderEnemies pegs = pictures (map drawEnemyBall pegs)
   where
     drawEnemyBall :: EnemyPeg -> Picture
@@ -56,10 +70,17 @@ renderEnemies pegs = pictures (map drawEnemyBall pegs)
               Destructible t -> show t
             mult = radius / 100 / sqrt (fromIntegral (length textToPrint))
 
-renderPlayer :: PlayerBall -> Picture
+-- | Render 'PlayerBall'.
+renderPlayer :: 
+  PlayerBall -- ^ Input 'PlayerBall'.
+  -> Picture -- ^ Rendered 'Picture'.
 renderPlayer (PlayerBall (x, y) _ _ _ radius) = translate x y $ color playerBallColor $ circleSolid radius
 
-renderBackground :: MapInfo -> MetaInfo -> Picture
+-- | Render background for current map state.
+renderBackground :: 
+  MapInfo -- ^ Input 'MapInfo'.
+  -> MetaInfo -- ^ Input 'MetaInfo'.
+  -> Picture -- ^ Rendered 'Picture'.
 renderBackground mapInfo metaInfo = mapBackground
   where
     mapBackground = safeGetPictureById mapBackgrounds $ backgroundPictureId mapInfo
