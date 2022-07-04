@@ -4,7 +4,6 @@ module Consts where
 import Graphics.Gloss
 import Types
 
--- | Screen settings | --
 width, height, offset :: Int
 
 -- | Width of player screen.
@@ -28,7 +27,6 @@ backgroundTracks = ["582065__lagmusics__8bit-looping", "JeffSpeed68_-_The_Vendet
 fps :: Int
 fps = 60
 
--- | RenderingConsts | --
 
 -- | Color of walls in game.
 wallColor :: Color 
@@ -42,7 +40,7 @@ enemyBallColor  = dark red
 playerBallColor :: Color 
 playerBallColor  =  dark white
 
--- | Initial player ball simulation settings | --
+-- | Initial player ball restitution
 startPlayerRestitution :: Restitution
 startPlayerRestitution = 6
 
@@ -54,7 +52,6 @@ startPlayerSpeed = 450
 startPlayerRadius :: Float
 startPlayerRadius = 10
 
--- | Simulation settings | --
 -- | Vector of gravity.
 gravity :: Vector
 gravity = (0, -6) --(0.-6)

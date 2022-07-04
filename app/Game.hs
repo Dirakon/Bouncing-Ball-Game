@@ -142,13 +142,13 @@ data SomeCollision
 -- | Try to move ball in certain direction, get all collisions, 
 -- apply gravity, get speed, direction, and position of either the point of first collision or simply next point of movement.
 moveAndCollide :: 
-  Position 
-  -> Float 
-  -> Vector 
-  -> Float 
-  -> Float 
-  -> MapInfo 
-  -> (Vector, Vector, Float, CollisionInfo)
+  Position -- ^ Initial ball position.
+  -> Float -- ^ Elapsed time since last update.
+  -> Vector -- ^ Initial direction.
+  -> Float -- ^ Initial speed.
+  -> Float -- ^ Ball radius.
+  -> MapInfo -- ^ Level
+  -> (Vector, Vector, Float, CollisionInfo) -- ^ Tuple (newPoint, newDirection, newSpeed, collisionInfo).
 moveAndCollide ballPosition@(x, y) dt dir startSpeed radius mapData = (newPoint, nextDir, newSpeed, collisionData)
   where
     -- New direction and speed
@@ -224,6 +224,7 @@ moveAndCollide ballPosition@(x, y) dt dir startSpeed radius mapData = (newPoint,
                 onEnemyCollisionPoint = vectorSum [collisionPoint, mulSV radius $ normalizeV ((enemyPosition enemy) `vectorDiff` collisionPoint)]
                 alreadyColliding = distanceBetween (enemyPosition enemy) movementStart <= enemyRadius enemy + radius
 
+-- | Move ball and bounce it off different obstacles, while changing the state of the game. 
 moveAndBounceBall :: 
   PlayerBall -- ^ Player ball before move and bounce.
   -> Float -- ^ Seconds of game.
