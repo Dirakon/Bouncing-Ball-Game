@@ -1,5 +1,5 @@
 # Bouncing-Ball-Game
-
+[![Haddock](https://shields.io/badge/Haddock-documentation-informational)](https://dirakon.github.io/Bouncing-Ball-Game/)
 ### Project description
 
 ![Gameplay demo](https://user-images.githubusercontent.com/43912367/177056990-d6d74ae5-70e9-4bd2-9bb9-b523b5ca54b9.gif)
