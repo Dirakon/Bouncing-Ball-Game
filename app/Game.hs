@@ -21,7 +21,9 @@ data GameState = Game
     mapInfo :: MapInfo,
     initialMap :: MapInfo,
     metaInfo :: MetaInfo
-  }
+  }  
+  deriving (Show)
+
 
 -- Generate initial game state depending on the map and metaInfo.
 initialStateFrom :: MapInfo -> MetaInfo -> Coords -> GameState
@@ -33,8 +35,8 @@ initialStateFrom mapInfo metaInfo mouseCords =
       mapInfo = mapInfo,
       initialMap = mapInfo,
       metaInfo = metaInfo
-    }
-
+    } 
+   
 -- | Update the game by moving the ball and bouncing of walls and enemies.
 update :: Float -> GameState -> GameState
 update seconds state = case mainBall state of

@@ -22,7 +22,7 @@ fps = 60
 
 -- | RenderingConsts
 wallColor :: Color
-wallColor = dark green
+wallColor = dark $ dark $ dark green
 enemyBallColor :: Color
 enemyBallColor  = dark red
 playerBallColor :: Color
@@ -43,7 +43,7 @@ gravity :: Vector
 gravity = (0, -6) --(0.-6)
 
 playerOtsckokCoefficient :: Float
-playerOtsckokCoefficient = 0.5
+playerOtsckokCoefficient = 0.05
 
 playerVelocityLoseCoefficient :: Float
 playerVelocityLoseCoefficient = 0.05

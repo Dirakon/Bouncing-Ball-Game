@@ -31,8 +31,10 @@ data MetaInfo = MetaInfo
     soundRequestList :: [String],
     currentBackgroundTrackId :: Int,
     requestedBackgroundTrackId :: Int,
-    sprites :: Sprites
+    sprites :: Sprites,
+    preloadedLevels :: [MapInfo]
   }
+   deriving (Show)
 
 data PlayerBall = PlayerBall
   { playerPosition :: Position,
@@ -41,8 +43,9 @@ data PlayerBall = PlayerBall
     speed :: Speed,
     playerRadius :: Float
   }
+   deriving (Show,Read)
 
-data EnemyBallType = Destructible Int | Indestructible deriving (Eq, Show, Read, Generic)
+data EnemyBallType = Destructible Int | Indestructible deriving (Eq, Show, Read, Generic) 
 
 data EnemyPeg = EnemyPeg
   { enemyPosition :: Position,
@@ -55,6 +58,7 @@ data Sprites = Sprites
   { cannonSprite :: Picture,
     backgrounds :: [Maybe Picture]
   }
+   deriving (Show)
 
 data MapInfo =MapInfo
   { enemyBalls :: [EnemyPeg],

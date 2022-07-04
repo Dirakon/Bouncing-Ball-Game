@@ -14,10 +14,12 @@ import Data.Binary.Get (ByteOffset)
 import Data.ByteString.Lazy as ByteStringLazy hiding (map)
 import Data.Maybe
 import DevUtils (updateMaps)
+import Game (GameState)
 import qualified Game
 import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Game
 import Graphics.Gloss.Juicy (loadJuicyPNG)
+import MapEditor (emptyMap)
 import qualified MapEditor
 import Sounds
 import System.Directory (doesFileExist)
@@ -49,28 +51,62 @@ saveLevel :: FilePath -> MapInfo -> IO ()
 saveLevel fileName map = do
   ByteStringLazy.writeFile fileName (encode map)
 
-loadLevel :: FilePath -> IO MapInfo
+loadAllSequentialLevelsFrom :: Int -> IO [MapInfo]
+loadAllSequentialLevelsFrom start = do
+  maybeLoadedLevel <- loadLevel (getLevelPath start)
+  case maybeLoadedLevel of
+    Nothing -> return []
+    Just level -> do
+      otherLevels <- loadAllSequentialLevelsFrom (start + 1)
+      return $ level : otherLevels
+
+loadLevel :: FilePath -> IO (Maybe MapInfo)
 loadLevel fileName = do
   levelFileExists <- doesFileExist fileName
-  unless levelFileExists $
-    ByteStringLazy.writeFile fileName (encode MapEditor.emptyMap)
-  maybeDecodedMap <- (decodeFileOrFail fileName :: IO (Either (ByteOffset, String) MapInfo))
-  case maybeDecodedMap of
-    Left _ -> return MapEditor.emptyMap
-    Right decodedMap -> return decodedMap
+  if not levelFileExists
+    then do
+      return Nothing
+    else do
+      maybeDecodedMap <- (decodeFileOrFail fileName :: IO (Either (ByteOffset, String) MapInfo))
+      case maybeDecodedMap of
+        Left _ -> return Nothing
+        Right decodedMap -> return $ Just decodedMap
 
-data GameState = GameOn Game.GameState | EditorOn MapEditor.MapEditorState
+loadLevelIfUnloaded :: MetaInfo -> IO (MetaInfo, MapInfo)
+loadLevelIfUnloaded oldMetaInfo = do
+  case listToMaybe (preloadedLevels oldMetaInfo) of
+    Just neededLevel -> do
+      print $ neededLevel
+      return
+        ( oldMetaInfo
+            { currentLevel = currentLevel oldMetaInfo + 1,
+              preloadedLevels = Prelude.drop 1 (preloadedLevels oldMetaInfo)
+            },
+          neededLevel
+        )
+    Nothing -> do
+      maybeLoadedLevel <- loadLevel (getLevelPath (currentLevel oldMetaInfo + 1))
+      return
+        ( oldMetaInfo {currentLevel = currentLevel oldMetaInfo + 1},
+          fromMaybe emptyMap maybeLoadedLevel
+        )
+
+data GameState = GameOn Game.GameState | EditorOn MapEditor.MapEditorState deriving (Show)
 
 main :: IO ()
 main = do
   initSounds
   let initialLevelIndex = 0
-  level <- loadLevel (getLevelPath initialLevelIndex)
+
+  levels <- loadAllSequentialLevelsFrom initialLevelIndex
+  print levels
+  let firstLevel = fromMaybe emptyMap (listToMaybe levels)
+
   sprites <- loadSprites
 
-  let initialMetaInfo = MetaInfo initialLevelIndex [] [] (-1) (-1) sprites
+  let initialMetaInfo = MetaInfo initialLevelIndex [] [] (-1) (-1) sprites (Prelude.drop 1 levels)
 
-  let initialFullState = GameOn (Game.initialStateFrom level initialMetaInfo (0, 0))
+  let initialFullState = GameOn (Game.initialStateFrom firstLevel initialMetaInfo (0, 0))
   playIO window black fps initialFullState render handleKeys update
   closeSounds
   where
@@ -78,7 +114,7 @@ main = do
     handleKeys (EventKey (SpecialKey KeySpace) Down _ _) (GameOn gameState) = do
       newMetaInfo <- playRequestedSounds $ addSoundToRequests "change_mode" (Game.metaInfo gameState)
       let userMousePosition = Game.userMousePosition gameState
-      return $ EditorOn (MapEditor.editorStateFrom (Game.initialMap gameState) newMetaInfo pngBackgrounds userMousePosition) 
+      return $ EditorOn (MapEditor.editorStateFrom (Game.initialMap gameState) newMetaInfo pngBackgrounds userMousePosition)
     handleKeys (EventKey (SpecialKey KeySpace) Down _ _) (EditorOn editorState) = do
       newMetaInfo <- playRequestedSounds $ addSoundToRequests "change_mode" (MapEditor.metaInfo editorState)
       let userMousePosition = MapEditor.userMousePosition editorState
@@ -92,15 +128,16 @@ main = do
       -- setTextSizes
       if Game.allDestroyableBallsAreDestroyed gameState
         then do
-          nextLevel <- loadLevel (getLevelPath (currentLevel metaInfo + 1))
-          return (newState nextLevel)
+          (newMetaInfo, nextLevel) <- loadLevelIfUnloaded metaInfo
+          newState nextLevel newMetaInfo
         else do
           return oldState
       where
         mouseCoords = Game.userMousePosition gameState
         metaInfo = Game.metaInfo gameState
-        newState nextLevel =
-          GameOn (Game.initialStateFrom nextLevel (metaInfo {currentLevel = currentLevel metaInfo + 1}) mouseCoords)
+        newState nextLevel newMetaInfo = do
+          -- TODO: same track unloading
+          return $ GameOn (Game.initialStateFrom nextLevel (newMetaInfo {currentBackgroundTrackId = -1}) mouseCoords)
 
     -- Choose handleKeys function depending on current mode
     handleKeys event (GameOn gameState) =
@@ -123,6 +160,6 @@ main = do
 getLevelPath :: Int -> FilePath
 getLevelPath levelIndex = "levels/level" ++ show levelIndex
 
-addSoundToRequests:: String -> MetaInfo -> MetaInfo
-addSoundToRequests sound metaInfo = 
+addSoundToRequests :: String -> MetaInfo -> MetaInfo
+addSoundToRequests sound metaInfo =
   metaInfo {soundRequestList = sound : soundRequestList metaInfo}

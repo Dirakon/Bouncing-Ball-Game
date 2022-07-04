@@ -17,7 +17,7 @@ data MapEditorState = Game
     userMousePosition :: Position,
     metaInfo :: MetaInfo,
     backgroundFiles :: [String]
-  }
+  }deriving (Show)
 
 changeIndex :: Int -> Int -> Int -> Int
 changeIndex index delta len =
@@ -165,7 +165,7 @@ emptyMap =
       ceilingY = 300,
       backgroundPictureId = 0,
       backgroundTrackId = 0
-    }
+    } 
 
 -- Get editor state from map, and meta-info
 editorStateFrom :: MapInfo -> MetaInfo -> [String] -> Coords -> MapEditorState
