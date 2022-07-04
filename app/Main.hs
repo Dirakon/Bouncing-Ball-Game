@@ -104,22 +104,20 @@ main = do
 
   sprites <- loadSprites
 
-  let initialMetaInfo = MetaInfo initialLevelIndex [] [] (-1) (-1) sprites (Prelude.drop 1 levels)
+  let initialMetaInfo = MetaInfo initialLevelIndex [] [] (-1) (-1) sprites (Prelude.drop 1 levels) (0,0)
 
-  let initialFullState = GameOn (Game.initialStateFrom firstLevel initialMetaInfo (0, 0))
+  let initialFullState = GameOn (Game.initialStateFrom firstLevel initialMetaInfo)
   playIO window black fps initialFullState render handleKeys update
   closeSounds
   where
     -- Change mode on 'space' pressed
     handleKeys (EventKey (SpecialKey KeySpace) Down _ _) (GameOn gameState) = do
       newMetaInfo <- playRequestedSounds $ addSoundToRequests "change_mode" (Game.metaInfo gameState)
-      let userMousePosition = Game.userMousePosition gameState
-      return $ EditorOn (MapEditor.editorStateFrom (Game.initialMap gameState) newMetaInfo pngBackgrounds userMousePosition)
+      return $ EditorOn (MapEditor.editorStateFrom (Game.initialMap gameState) newMetaInfo pngBackgrounds)
     handleKeys (EventKey (SpecialKey KeySpace) Down _ _) (EditorOn editorState) = do
       newMetaInfo <- playRequestedSounds $ addSoundToRequests "change_mode" (MapEditor.metaInfo editorState)
-      let userMousePosition = MapEditor.userMousePosition editorState
       saveLevel (getLevelPath (currentLevel newMetaInfo)) map
-      return $ GameOn (Game.initialStateFrom map newMetaInfo userMousePosition)
+      return $ GameOn (Game.initialStateFrom map newMetaInfo)
       where
         map = MapEditor.mapInfo editorState
 
@@ -133,11 +131,10 @@ main = do
         else do
           return oldState
       where
-        mouseCoords = Game.userMousePosition gameState
         metaInfo = Game.metaInfo gameState
         newState nextLevel newMetaInfo = do
           -- TODO: same track unloading
-          return $ GameOn (Game.initialStateFrom nextLevel (newMetaInfo {currentBackgroundTrackId = -1}) mouseCoords)
+          return $ GameOn (Game.initialStateFrom nextLevel (newMetaInfo {currentBackgroundTrackId = -1}))
 
     -- Choose handleKeys function depending on current mode
     handleKeys event (GameOn gameState) =

@@ -8,13 +8,12 @@ import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Game
 import Render (renderBackground, renderEnemies, renderMap)
 import TextSizeAnalysis (alignedCenterText)
-import Types (Coords, EnemyBallType (..), EnemyPeg (..), MapInfo (..), MetaInfo (requestedBackgroundTrackId, sprites), Position, Sprites (backgrounds))
+import Types (Coords, EnemyBallType (..), EnemyPeg (..), MapInfo (..), MetaInfo (requestedBackgroundTrackId, sprites, userMousePosition), Position, Sprites (backgrounds))
 
 -- | A data structure to hold the state of the map editor.
 data MapEditorState = Game
   { currentBall :: Maybe EnemyPeg,
     mapInfo :: MapInfo,
-    userMousePosition :: Position,
     metaInfo :: MetaInfo,
     backgroundFiles :: [String]
   }deriving (Show)
@@ -98,7 +97,7 @@ handleKeys (EventKey (SpecialKey KeyDown) Down _ _) state =
     newMap = (mapInfo state) {backgroundTrackId = newTrackId}
     newTrackId = changeIndex (backgroundTrackId (mapInfo state)) 1 numberOfTracks
 handleKeys (EventMotion (xPos, yPos)) state =
-  state {userMousePosition = newUserMousePosition}
+  state {metaInfo = (metaInfo state){userMousePosition = newUserMousePosition}}
   where
     newUserMousePosition = (xPos, yPos)
 handleKeys (EventKey (MouseButton RightButton) Down _ _) state =
@@ -111,8 +110,8 @@ handleKeys (EventKey (MouseButton RightButton) Down _ _) state =
 
     newEnemyBalls =
       enemyBalls oldMapInfo
-        ++ [ EnemyPeg (userMousePosition state) curBallRadius curBallType
-             | inBoundaries (userMousePosition state) curBallRadius
+        ++ [ EnemyPeg (userMousePosition (metaInfo state)) curBallRadius curBallType
+             | inBoundaries (userMousePosition (metaInfo state)) curBallRadius
            ]
     curBallRadius = maybe 10 enemyRadius curBall
     curBallType = maybe (Destructible 1) ballType curBall
@@ -131,7 +130,7 @@ handleKeys (EventKey (MouseButton LeftButton) Down _ _) state =
             (enemyX, enemyY) = enemyPosition x
             sumRadius = enemyRadius x + currentRadius
             currentRadius = maybe 10 enemyRadius (currentBall state)
-        (mouseX, mouseY) = userMousePosition state
+        (mouseX, mouseY) = userMousePosition $ metaInfo state
 handleKeys (EventKey (MouseButton WheelUp) Down modif _) state =
   state
     { currentBall = newCurrentBall
@@ -168,11 +167,10 @@ emptyMap =
     } 
 
 -- Get editor state from map, and meta-info
-editorStateFrom :: MapInfo -> MetaInfo -> [String] -> Coords -> MapEditorState
-editorStateFrom map metaInfo pictures userMousePosition =
+editorStateFrom :: MapInfo -> MetaInfo -> [String]  -> MapEditorState
+editorStateFrom map metaInfo pictures =
   Game
     { currentBall = Just (EnemyPeg (0, 0) 10 (Destructible 1)),
-      userMousePosition = userMousePosition,
       mapInfo = map,
       metaInfo = metaInfo,
       backgroundFiles = pictures
@@ -204,7 +202,7 @@ update _ state = case currentBall state of
     updateBackgroundTrack state
   Just curBall ->
     updateBackgroundTrack
-      ( if inBoundaries (userMousePosition state) (enemyRadius curBall)
+      ( if inBoundaries (userMousePosition (metaInfo state)) (enemyRadius curBall)
           then moveCurBall state
           else state
       )
@@ -224,4 +222,4 @@ moveCurBall
       newCurrentBall = case currentBall state of
         Nothing -> Nothing
         Just oldCurBall -> Just oldCurBall {enemyPosition = newPosition}
-      newPosition = userMousePosition state
+      newPosition = userMousePosition $ metaInfo state

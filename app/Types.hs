@@ -32,7 +32,8 @@ data MetaInfo = MetaInfo
     currentBackgroundTrackId :: Int,
     requestedBackgroundTrackId :: Int,
     sprites :: Sprites,
-    preloadedLevels :: [MapInfo]
+    preloadedLevels :: [MapInfo],
+    userMousePosition :: Coords
   }
    deriving (Show)
 

@@ -17,7 +17,6 @@ import Types (Coords, EnemyBallType (..), EnemyPeg (..), MapInfo (..), MetaInfo 
 data GameState = Game
   { mainBall :: Maybe PlayerBall,
     ballsLeft :: Int,
-    userMousePosition :: Position,
     mapInfo :: MapInfo,
     initialMap :: MapInfo,
     metaInfo :: MetaInfo
@@ -25,13 +24,12 @@ data GameState = Game
   deriving (Show)
 
 
--- Generate initial game state depending on the map and metaInfo.
-initialStateFrom :: MapInfo -> MetaInfo -> Coords -> GameState
-initialStateFrom mapInfo metaInfo mouseCords =
+-- | Generate initial game state depending on the map and metaInfo.
+initialStateFrom :: MapInfo -> MetaInfo -> GameState
+initialStateFrom mapInfo metaInfo =
   Game
     { mainBall = Nothing,
       ballsLeft = 6,
-      userMousePosition = mouseCords,
       mapInfo = mapInfo,
       initialMap = mapInfo,
       metaInfo = metaInfo
@@ -103,7 +101,7 @@ render state =
     playerBallIsDeployed = case mainBall state of
       Nothing -> False
       _ -> True
-    mouseCoords = userMousePosition state
+    mouseCoords = userMousePosition $ metaInfo state
     currentCannonPosition = cannonPosition mapData
     directionFromCannonToMouse = normalizeV (vectorDiff mouseCoords currentCannonPosition)
 
@@ -340,7 +338,7 @@ getFirstEnemyIntersection
 handleKeys :: Event -> GameState -> GameState
 -- Restart game on 's' entered
 handleKeys (EventKey (Char 's') Down _ _) state =
-  initialStateFrom (initialMap state) (updateMetaInfoSounds [Just "reset_level"] (metaInfo state)) (0, 0)
+  initialStateFrom (initialMap state) (updateMetaInfoSounds [Just "reset_level"] (metaInfo state))
 -- Spawn ball on mouse click (if has balls left and ball is not deployed yet)
 handleKeys (EventKey (MouseButton LeftButton) Down _ (xPos, yPos)) state =
   state {mainBall = newMainBall} {metaInfo = newMetaInfo}
@@ -369,7 +367,7 @@ handleKeys (EventKey (MouseButton LeftButton) Down _ (xPos, yPos)) state =
 
 -- Update mouse position in meta info
 handleKeys (EventMotion (xPos, yPos)) state =
-  state {userMousePosition = (xPos, yPos)}
+  state {metaInfo = (metaInfo state) {userMousePosition = (xPos, yPos)}}
 -- Do nothing for all other events.
 handleKeys _ game = game
 
