@@ -50,6 +50,9 @@ Dmitry Bannikov
 Kirill Korolev
 
 [<img src="https://badges.aleen42.com/src/telegram.svg">](https://t.me/zaqbez39me)
+
+### Stack
+[<img src="https://camo.githubusercontent.com/9dee1db8830d310f4a891e7ba577decc4618da5431ea65017393c369b9b56733/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f436f64652d4861736b656c6c2d696e666f726d6174696f6e3f7374796c653d666c6174266c6f676f3d4861736b656c6c266c6f676f436f6c6f723d776869746526636f6c6f723d326262633861">](https://www.haskell.org/)
   
 
 ### Music used
